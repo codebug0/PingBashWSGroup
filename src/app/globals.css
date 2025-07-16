@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: black;
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+.bg-wrapper {
+  width: 100%;
+  background: linear-gradient(180deg, rgb(29 7 179 / 0%) 0%, #050027 100%),
+    linear-gradient(0deg, rgb(4 1 28 / 97%), rgb(5 0 39 / 0%)),
+    url(/download.png);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+/* width */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 3px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  border-radius: 2px;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #7d60ff;
+  border-radius: 10px;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #613dff;
+}
+
+.btn-welcome {
+  border: 1px solid;
+  border-image-source: linear-gradient(225deg, #00d1ff 0%, #002ed2 100%);
+}
+
+.flex.py-4.w-full.h-full.gap-3.items-center {
+  justify-content: space-between;
+}
+
+.rce-citem-body--bottom-status span {
+  background-color: red;
+}
+.rce-citem-status {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+.pos-relative {
+  position: relative;
+}
+
+.pos-absolute {
+  position: absolute;
+}
+
+.pos-bot-right {
+  bottom: 0px;
+  right: 0px;
+}
+
+.rce-citem {
+  background: none !important;
+}
+
+.rce-avatar-container > img,
+.target-user {
+  object-fit: cover;
+}
+
+.picker-emoji > div > em-emoji-picker {
+  height: 360px;
+}
+
+.ruby-text {
+  display: ruby-text;
+}
+
+.flex-row-center {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.rce-citem-body--bottom-title {
+  font-size: 13px;
+  color: #888
+}
+
+.rce-citem-body--top-title {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.rce-citem {
+  height: 70px;
+}
+
+.ai-history {
+  background-color: #f9fafb;
+}
+
+.ai-history.active {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 0, 212, 0.1) -0.19%,
+    rgba(179, 0, 200, 0.1) 99.81%
+  );
+}
+
+.h-mob-chatbox {
+  height: calc(100vh - 125px);
+}
+
+.h-web-chatbox {
+  height: calc(100vh - 84px);
+}
+
+.float-right-chil {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.line-bot-match {
+  width: 100%;
+  margin-left: -16px;
+  margin-right: -16px;
+}
