@@ -29,4 +29,6 @@ export default {
   FORBIDDEN: "forbidden",
   ALL_REFRESH: "allRefresh",
   USER_LOGGED_AS_ANNON: "user logged as annon",
+  UPDATE_FAV_GROUPS: "update fav groups",
+  GET_FAV_GROUPS: "get fav groups",
 }

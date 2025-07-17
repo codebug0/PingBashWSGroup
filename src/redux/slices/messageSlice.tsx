@@ -1,9 +1,9 @@
 // messagesSlice.ts
-import { MessageList, selectedUserDetail, User, ChatGroup, selectedGroupDetail } from '@/interface/chatInterface';
+import { MessageUnit, selectedUserDetail, User, ChatGroup, selectedGroupDetail } from '@/interface/chatInterface';
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface MessagesState {
-  messageList: MessageList[];
+  messageList: MessageUnit[];
   unreadCount: number;
   selectedChatUser: selectedUserDetail | null;
   selectedChatGroup: selectedGroupDetail | null;
@@ -24,7 +24,7 @@ const messagesSlice = createSlice({
   name: 'messages',
   initialState,
   reducers: {
-    setMessageList: (state, action: PayloadAction<MessageList[]>) => {
+    setMessageList: (state, action: PayloadAction<MessageUnit[]>) => {
       if (Array.isArray(action.payload)) {
         state.messageList = [...action.payload]
       };

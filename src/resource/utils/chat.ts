@@ -28,6 +28,7 @@ export const registerAsAnon = (userId: number | null) => {
 }
 
 export const loginAsReal = (token: string | null, groupId: number | null, anonId: number | null) => {
+  console.log(anonId, "\\", groupId, "\\", token);
   if (token && groupId && anonId)
     socket.emit(ChatConst.USER_LOGGED_WILD_SUB, {token, groupId, anonId})
 }
@@ -102,13 +103,14 @@ export const deleteGroupMsg = (token: string | null, msgId: number, groupId: num
 }
 
 export const banGroupUser = (token: string | null, groupId: number | null | undefined, userId: number | null | undefined, receivers: number[] | null | undefined) => {
-  if (token && groupId && groupId) {
+  console.log(token, ",", groupId, ",", userId);
+  if (token && groupId && userId) {
     socket.emit(ChatConst.BAN_GROUP_USER, { token, groupId, userId, receivers })
   }
 }
 
 export const unbanGroupUser = (token: string | null, groupId: number | null | undefined, userId: number | null | undefined, receivers: number[] | null | undefined) => {
-  if (token && groupId && groupId) {
+  if (token && groupId && userId) {
     socket.emit(ChatConst.UNBAN_GROUP_USER, { token, groupId, userId, receivers })
   }
 }
@@ -117,4 +119,10 @@ export const readGroupMsg = (token: string | null, groupId: number | null) => {
   if (token && groupId) {
     socket.emit(ChatConst.READ_GROUP_MSG, { token, groupId })
   }
+}
+
+export const updateGroupFavInfo = (token: string | null, groupId: number | null | undefined, isMember: number | null) => {
+  console.log(" ===== aaaa ===", groupId, ",", isMember, token);
+  if (token && groupId)
+    socket.emit(ChatConst.UPDATE_FAV_GROUPS, { token, groupId, isMember })
 }

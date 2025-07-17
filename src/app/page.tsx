@@ -14,33 +14,26 @@ import {
   faReply
 } from "@fortawesome/free-solid-svg-icons";
 import { 
-  getHistory,
   getGroupHistory, 
   getGroupHistoryAnon,
-  getMessages, 
-  getUsers, 
-  sendMsg, 
   sendGroupMsg, 
-  getGroupMessages, 
-  listenGroupMessages,
   socket, 
-  readMsg, 
-  readGroupMsg, 
   deleteGroupMsg,
   banGroupUser,
   unbanGroupUser,
   registerAsAnon,
-  loginAsReal
+  loginAsReal,
+  updateGroupFavInfo
  } from "@/resource/utils/chat";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Popover, PopoverTrigger, PopoverContent } from "@nextui-org/popover";
 import ChatConst from "@/resource/const/chat_const";
-import { SERVER_URL } from "@/resource/const/const";
+import { GROUP_CREATER_ID, GROUP_MEMBER_IDS, SELECTED_GROUP_ID, SERVER_URL } from "@/resource/const/const";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
 import { chatDate, now } from "@/resource/utils/helpers";
 import { setChatUserList } from "@/redux/slices/messageSlice";
-import { MessageUnit, User, ChatOption } from "@/interface/chatInterface";
+import { MessageUnit, User, ChatOption, ChatGroup } from "@/interface/chatInterface";
 import { setMessageList } from "@/redux/slices/messageSlice";
 import toast from "react-hot-toast";
 import messages from "@/resource/const/messages";
@@ -77,7 +70,6 @@ const ChatsContent: React.FC = () => {
 
   const msgList: MessageUnit[] = useSelector((state: RootState) => state.msg.messageList)
   const userList = useSelector((state: RootState) => state.msg.chatUserList)
-  const selectedUser = useSelector((state: RootState) => state.msg.selectedChatUser)
   const [prevMsgList, setPrevMsgList] = useState<MessageUnit[]>([]);
 
   const groupList = useSelector((state: RootState) => state.msg.chatGroupList)
@@ -86,9 +78,6 @@ const ChatsContent: React.FC = () => {
 
   const params = useSearchParams();
   const dispatch = useDispatch()
-  const role = params.get("Role");
-  const router = useRouter();
-  const path = usePathname();
   const imageUploadRef = useRef<HTMLInputElement | null>(null)
   const fileUploadRef = useRef<HTMLInputElement | null>(null)
   const inputMsgRef = useRef<HTMLInputElement | null>(null)
@@ -109,16 +98,13 @@ const ChatsContent: React.FC = () => {
   const [replyMsg, setReplyMsg] = useState<MessageUnit | null | undefined>();
   const [showMsgReplyView, setShowMsgReplyView] = useState<boolean | null>(null);
   const playBell = useSound("/sounds/sound_bell.wav");
-  const [currentUserId, setCurrentUserId] = useState<number | null>(0);
-
-  const groupMenuOptions = [
-    {id: 1, name: "Copy Group Link"},
-    {id: 2, name: "Add to My Groups"},
-    {id: 3, name: "Hide Chat"},
-    {id: 4, name: "Subscribe to Notifications"}
-  ] 
+  const [currentUserId, setCurrentUserId] = useState<number>(0);
+  const [currentGroupId, setCurrentGroupId] = useState<number | null>(0);
+  const [groupCreaterId, setGroupCreaterId] = useState<number | null>(0);
+  const [groupMemberIds, setGroupMemberIds] = useState<number[] | null>([]);
+  const [groupMenuOptions, setGroupMenuOptions] = useState<any[]>([])
+  
   const soundMenuPopoverRef = useRef<HTMLImageElement>(null);
-  const [anonUserToken, setAnonUserToken] = useState<string | null>(null);
 
   const [mySoundOptionId, setMySoundOptionId] = useState<number | null | undefined>(null);
   const [soundSelectedOption, setSoundSelectedOption] = useState<string | null | undefined>(null);
@@ -131,7 +117,6 @@ const ChatsContent: React.FC = () => {
   const [showSigninPopup, setShowSigninPopup] = useState<boolean>(false);
 
   const [userNavShow, setUserNavShow] = useState(params.get("User") ? false : true);
-  const [selectedGroupId, setSelectedGroupid] = useState<number>(0);
 
   const getSubDomain = () => {
     const hostname = window.location.hostname; // e.g., "blog.example.com"
@@ -152,7 +137,7 @@ const ChatsContent: React.FC = () => {
     if (!uuid) {
       uuid = crypto.randomUUID(); // Use `uuidv4()` from 'uuid' lib if needed
       localStorage.setItem("browser_uuid", uuid);
-    }
+    } 
     return uuid;
   }
 
@@ -192,37 +177,118 @@ const ChatsContent: React.FC = () => {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768);
     }; 
-    registerAsAnon(getAnonId());
-    // listenGroupMessages(getAnonToken(), getSubDomain());
+    const token = localStorage.getItem(`MayaIQ_Token`);
+    const groupId = getChatGroupID();
+    const userId = getCurrentUserId();   
+    console.log("=== userId ====", userId); 
+    setCurrentGroupId(groupId);
+    setCurrentUserId(userId);
+    setGroupCreaterId(getGroupCreaterId());
+    setGroupMemberIds(getGroupMemberIds());
+
+    if (getCurrentUserId() != 0 && token && groupId) {   
+      loginAsReal(token, groupId, getAnonId());
+      getGroupHistoryAnon(groupId, lastChatDate);
+    } else {
+      registerAsAnon(getAnonId());          
+    }    
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
-    // fetchSoundOption();
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
   useEffect(() => {
     const handleLogginAsAnon = (data: any) => {
-      console.log("==== Anon Registered ====", data);
       if (data.success == "success") {
         registerAnon(getAnonToken(), getAnonId(), getSubDomain());
       }
     };
 
+    
+
     // Register socket listener
     socket.on(ChatConst.USER_LOGGED_AS_ANNON, handleLogginAsAnon);
+    
 
-    socket.on(ChatConst.GET_GROUP_HISTORY_ANON, (data) => {
-      dispatch(setMessageList([...data]))
+    socket.on(ChatConst.GET_GROUP_HISTORY, (data) => {
+      setPrevMsgList(msgList);
+      dispatch(setMessageList([...data]));
     })
 
     // Cleanup to avoid memory leaks and invalid state updates
     return () => {
       socket.off(ChatConst.USER_LOGGED_AS_ANNON, handleLogginAsAnon);
-      socket.off(ChatConst.GET_GROUP_HISTORY_ANON, (data) => {
+      socket.off(ChatConst.GET_GROUP_HISTORY, (data) => {
+        setPrevMsgList(msgList);
         dispatch(setMessageList([...data]))
       })
     };
   }, []);
+
+  const handleBanUser = (userId: number) => {
+    console.log("=== Banned UserId ===", userId);
+    console.log("=== Banned UserId ===", msgList);
+    const updateMsgList = msgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 1} : msg);
+    console.log("=== Banned UserId ===", updateMsgList);
+    setPrevMsgList(msgList);
+    dispatch(setMessageList([...updateMsgList]));
+  }
+
+  const handleUnbanUser = (userId: number) => {
+    const updateMsgList = msgList.map(msg => {return msg.Sender_Id == userId ? {...msg, sender_banned: 0} : msg});
+    setPrevMsgList(msgList);
+    dispatch(setMessageList([...updateMsgList]));
+  }
+
+  socket.on(ChatConst.BAN_GROUP_USER, handleBanUser);
+  socket.on(ChatConst.UNBAN_GROUP_USER, handleUnbanUser);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const safeSetGroupMemberIds = (newIds: number[]) => {
+      if (isMounted) {
+        setGroupMemberIds(newIds);
+        localStorage.setItem(GROUP_MEMBER_IDS, JSON.stringify(newIds));
+      }
+    };
+
+    const handleGetFavGroups = (data: ChatGroup[]) => {
+      if (!isMounted) return;
+      let isMyFav = data.find(group => group.id == currentGroupId) != null;
+      if (isMyFav) {
+        if (groupMemberIds == null || groupMemberIds?.indexOf(currentUserId) == -1) {
+          if (groupMemberIds == null) {
+            safeSetGroupMemberIds([currentUserId]);
+          } else {
+            safeSetGroupMemberIds([...groupMemberIds, currentUserId]);
+          }
+        }
+      } else {
+        if (groupMemberIds != null) {
+          safeSetGroupMemberIds(groupMemberIds.filter(userId => userId != currentUserId));
+        }
+      }
+    };
+
+    // Register handlers
+    socket.on(ChatConst.GET_FAV_GROUPS, handleGetFavGroups);
+    
+    // Cleanup
+    return () => {
+      isMounted = false;
+      socket.off(ChatConst.GET_FAV_GROUPS, handleGetFavGroups);
+    };
+  }, [currentGroupId, groupMemberIds, currentUserId]);
+
+  useEffect(() => {
+    setGroupMenuOptions([
+      {id: 1, name: "Copy Group Link"},
+      {id: 2, name: groupMemberIds?.indexOf(currentUserId) == -1 ? "Add to My Groups" : "Remove from My Groups"},
+      // {id: 3, name: "Hide Chat"},
+      // {id: 4, name: "Subscribe to Notifications"}
+    ])
+  }, [groupMemberIds, currentUserId]);
 
   // To get the initial data for the users and the categegories for the dashboard
   const registerAnon = useCallback(async (token: string, anonId: number, groupName: string) => {
@@ -245,8 +311,13 @@ const ChatsContent: React.FC = () => {
         dispatch(setIsLoading(false));
         toast.error(groupName + "group does not exist.");
         return;
-      }
-      setSelectedGroupid(res.data.group_id);      
+      } 
+      setCurrentGroupId(res.data.group_id);
+      setGroupCreaterId(res.data.creater_id);
+      setGroupMemberIds(res.data.members);
+      localStorage.setItem(SELECTED_GROUP_ID, res.data.group_id);
+      localStorage.setItem(GROUP_CREATER_ID, res.data.creater_id);
+      localStorage.setItem(GROUP_MEMBER_IDS, JSON.stringify(res.data.members));
       getGroupHistoryAnon(res.data.group_id, lastChatDate);
     } catch (error) {
       // Handle error appropriately
@@ -265,23 +336,60 @@ const ChatsContent: React.FC = () => {
     return parseInt(userId);
   };
 
+  const getChatGroupID = (): number => {
+    let groupID: string | null = "0";
+    if (typeof window !== "undefined") {
+      groupID = localStorage.getItem(SELECTED_GROUP_ID);
+      if (groupID == null) {
+        groupID = "0";
+      }
+    }    
+    return parseInt(groupID);
+  };
+
+  const getGroupCreaterId = (): number => {
+    let createrId: string | null = "0";
+    if (typeof window !== "undefined") {
+      createrId = localStorage.getItem(GROUP_CREATER_ID);
+      if (createrId == null) {
+        createrId = "0";
+      }
+    }    
+    return parseInt(createrId);
+  }
+
+  const getGroupMemberIds = (): number[] => {
+    let memberIds: string = "[0]";
+    if (typeof window !== "undefined") {
+      memberIds = localStorage.getItem('myIntArray') ?? "[0]";
+    }    
+    return JSON.parse(memberIds);
+  }
+
+  function mergeArrays(oldArray: MessageUnit[], newArray: MessageUnit[]): MessageUnit[] {
+    const oldMap = new Map(oldArray.map(item => [item?.Id, item]));
+    for (const newItem of newArray) {
+      oldMap.set(newItem?.Id, newItem); // updates existing or adds new
+    }
+    return Array.from(oldMap.values());
+  }
+
   // Receive the message afer sending the message.
   socket.on(ChatConst.SEND_GROUP_MSG, (data) => {    
-    const groupId = data?.length && data[data.length - 1].group_id;
-    console.log("message arrived");    
-    if (groupId === selectedGroupId) {
+    const groupId = data?.length && data[data.length - 1].group_id; 
+    if (groupId === currentGroupId) {
       setPrevMsgList(msgList);
-      dispatch(setMessageList([...data]));
+      const newList = mergeArrays(msgList, data);
+      dispatch(setMessageList([...newList]));
       const prevLength = msgList == null ? 0 : msgList.length;
-      const newLength = data == null ? 0 : data.length;
+      const newLength = newList == null ? 0 : newList.length;
       if (prevLength + 1 == newLength) {
-        if (data[newLength - 1].Sender_Id != getCurrentUserId()) {
-          
+        if (newList[newLength - 1].Sender_Id != getCurrentUserId()) {          
           if (mySoundOptionId == 1) {
             playBell();
           } else if (mySoundOptionId == 2) {
-            if (data[newLength - 1].parent_id != null) {
-              const toMsgId = data[newLength - 1].parent_id;
+            if (newList[newLength - 1].parent_id != null) {
+              const toMsgId = newList[newLength - 1].parent_id;
               const toMsg = msgList.find(msg =>  msg.Id == toMsgId);
               if (toMsg?.Sender_Id == getCurrentUserId()) {
                 playBell();
@@ -302,7 +410,7 @@ const ChatsContent: React.FC = () => {
 
   socket.on(ChatConst.BAN_GROUP_USER, (data) => { 
     const groupId = data?.length && data[data.length - 1].group_id;    
-    if (groupId === selectedGroupId) {
+    if (groupId === currentGroupId) {
       setPrevMsgList(msgList);
       dispatch(setMessageList([...data]))
     }
@@ -310,7 +418,7 @@ const ChatsContent: React.FC = () => {
 
   socket.on(ChatConst.UNBAN_GROUP_USER, (data) => { 
     const groupId = data?.length && data[data.length - 1].group_id;    
-    if (groupId === selectedGroupId) {
+    if (groupId === currentGroupId) {
       setPrevMsgList(msgList);
       dispatch(setMessageList([...data]))
     }
@@ -346,14 +454,20 @@ const ChatsContent: React.FC = () => {
   });
 
   socket.on(ChatConst.USER_LOGGED_WILD_SUB, (data) => {
-    console.log("==== RESULT ====", data);
-    fetchSoundOption();
   });
   
+  useEffect(() => {
+    const token = localStorage.getItem(`MayaIQ_Token`)
+    if (localStorage.getItem(`MayaIQ_Token`) && token) {
+      console.log("===fetchSoundOption===");
+      fetchSoundOption();
+    }    
+  }, [currentUserId]);
 
   // when the time expired
   socket.on(ChatConst.EXPIRED, () => {
-    localStorage.clear()
+    localStorage.clear();
+    setShowSigninPopup(true);
   })
 
   socket.on(ChatConst.USER_LOGGED, () => {  
@@ -373,7 +487,7 @@ const ChatsContent: React.FC = () => {
   };
 
   useEffect(() => {
-    if (prevMsgList.length <= msgList.length) {
+    if (prevMsgList.length < msgList.length) {
       scrollToBottom();
     }
   }, [msgList]);
@@ -412,7 +526,7 @@ const ChatsContent: React.FC = () => {
   useEffect(() => {
     if (lastChatDate == 1) return;
     const token = localStorage.getItem(`MayaIQ_Token`);
-    getGroupHistory(token, selectedGroupId, lastChatDate);
+    getGroupHistory(token, currentGroupId, lastChatDate);
   }, [lastChatDate])
 
   // The action for the message send action
@@ -437,7 +551,7 @@ const ChatsContent: React.FC = () => {
   // The action for the message send action
   const sendGroupMsgHandler = (type: string, value: string) => {
     console.log("===Message List ====", msgList);
-    const selectedGroup = groupList.find((group => group.id == selectedGroupId)); 
+    const selectedGroup = groupList.find((group => group.id == currentGroupId)); 
     if (selectedGroup?.banned == 1) {
       toast.error("You can't send message now. You are banned.");
       setInputMsg("");
@@ -446,12 +560,12 @@ const ChatsContent: React.FC = () => {
     let receivers = selectedGroup?.members?.filter((member) => member.id != getCurrentUserId()).map(member => member.id); 
     if (receivers == null) receivers = []; 
     if (attachment?.type && attachment.type === 'file') {
-      sendGroupMsg(selectedGroupId, `<a className="inline-block text-cyan-300 hover:underline w-8/12 relative rounded-e-md" 
+      sendGroupMsg(currentGroupId, `<a className="inline-block text-cyan-300 hover:underline w-8/12 relative rounded-e-md" 
       href=${SERVER_URL + ""}/uploads/chats/files/${attachment.url}>File Name : ${attachment.url}</a>`
         , localStorage.getItem(`MayaIQ_Token`), receivers, replyMsg?.Id)
     } else if (attachment?.type && attachment.type === 'image') {
       sendGroupMsg(
-        selectedGroupId, 
+        currentGroupId, 
         `<img src='${SERVER_URL}/uploads/chats/images/${attachment?.url}' alt="" />`, 
         localStorage.getItem(`MayaIQ_Token`), 
         receivers,
@@ -462,12 +576,12 @@ const ChatsContent: React.FC = () => {
       console.log("=== Role ====;", `MayaIQ_Token`);
       console.log("==== Send Message Token ====", token);
        if (type === "gif") {
-        sendGroupMsg(selectedGroupId, value, token, receivers, replyMsg?.Id);
+        sendGroupMsg(currentGroupId, value, token, receivers, replyMsg?.Id);
       } else if (type === "sticker") {
-        sendGroupMsg(selectedGroupId, value, token, receivers, replyMsg?.Id);
+        sendGroupMsg(currentGroupId, value, token, receivers, replyMsg?.Id);
       } else {
         if (inputMsg.length > 0) {        
-          sendGroupMsg(selectedGroupId, inputMsg, token, receivers, replyMsg?.Id);       
+          sendGroupMsg(currentGroupId, inputMsg, token, receivers, replyMsg?.Id);       
           setInputMsg(""); 
           setShowEmoji(false);         
         }
@@ -564,28 +678,24 @@ const ChatsContent: React.FC = () => {
   const banUser = () => {
     if (banUserId == null) return;
     const token = localStorage.getItem(`MayaIQ_Token`)
-    const selectedGroup = groupList.find((group => group.id == selectedGroupId)); 
-    const receivers = selectedGroup?.members?.filter((member) => member.id != getCurrentUserId()).map(member => member.id); 
-    banGroupUser(token, selectedGroupId, banUserId, receivers);
+    banGroupUser(token, currentGroupId, banUserId, []);
     setOpenBanUserConfirmPopup(false);
     setBanUserId(null);
   }
 
   const unbanUser = () => {
     const token = localStorage.getItem(`MayaIQ_Token`)
-    const selectedGroup = groupList.find((group => group.id == selectedGroupId)); 
+    const selectedGroup = groupList.find((group => group.id == currentGroupId)); 
     const receivers = selectedGroup?.members?.filter((member) => member.id != getCurrentUserId()).map(member => member.id); 
-    unbanGroupUser(token, selectedGroupId, getCurrentUserId(), receivers);
+    unbanGroupUser(token, currentGroupId, getCurrentUserId(), receivers);
     setOpenUnbanReqConfirmPopup(false);
   }
 
-  const deleteMessage = () => {    
+  const deleteMessage = () => {  
+    console.log("aaaa");  
     if (deleteMsgId == null) return;
     const token = localStorage.getItem(`MayaIQ_Token`)
-    const selectedGroup = groupList.find(group => group.id == selectedGroupId); 
-    let receivers = selectedGroup?.members?.filter((member) => member.id != getCurrentUserId()).map(member => member.id); 
-    if (receivers == null) receivers = [];
-    deleteGroupMsg(token, deleteMsgId, selectedGroup?.id, receivers);
+    deleteGroupMsg(token, deleteMsgId, currentGroupId, []);
     setOpenMsgDeleteConfirmPopup(false);
     setDeleteMsgId(null);
   }
@@ -610,8 +720,20 @@ const ChatsContent: React.FC = () => {
     setOpenUnbanReqConfirmPopup(true);
   }
 
-  const handleGroupMenuClick = (menuId: number) => {
+  const handleGroupMenuClick = async (menuId: number) => {
     groupMemuPopoverRef.current?.click();
+    if (menuId == 1) {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success("URL copied to clipboard!");
+      } catch (err) {
+        toast.error("Failed to copy URL: " + err);
+      }
+    } else if (menuId == 2) {
+      let groupIdFav = groupMemberIds?.find(memberId => memberId === currentUserId) != null;
+      let updateIsMember = groupIdFav ? 0 : 1;
+      updateGroupFavInfo(localStorage.getItem(`MayaIQ_Token`), currentGroupId, updateIsMember);
+    }
   }
 
   const getSticker = (content: string) => {
@@ -765,7 +887,7 @@ const ChatsContent: React.FC = () => {
           setCurrentUserId(res.data.id);
           localStorage.setItem("MayaIQ_User", res.data.id);
           localStorage.setItem(`MayaIQ_Token`, res.data.token);
-          loginAsReal(res.data.token, selectedGroupId, getAnonId());
+          loginAsReal(res.data.token, currentGroupId, getAnonId());
           setShowSigninPopup(false);
         } else if (res.status === httpCode.NOT_MATCHED) {
           toast.error(messages.common.notMatched);
@@ -795,7 +917,7 @@ const ChatsContent: React.FC = () => {
             <section className={`flex flex-col justify-between border border-gray-500 rounded-[10px] w-[50%] duration-500 max-[810px]:w-full`}>
 
               {/* Chat Right Side Header Start */}
-              {selectedGroupId != 0 && <nav className="shadow-lg shadow-slate-300 select-none px-[20px] py-[16px] gap-[10px] border-b flex justify-between flex-wrap">
+              {currentGroupId != 0 && <nav className="shadow-lg shadow-slate-300 select-none px-[20px] py-[16px] gap-[10px] border-b flex justify-between flex-wrap">
                 <div className="flex gap-[16px] items-center">
                   <span className="hidden max-[810px]:flex"><FontAwesomeIcon icon={userNavShow ? faArrowRight : faArrowLeft} onClick={() => setUserNavShow(!userNavShow)} /></span>
                   
@@ -832,7 +954,7 @@ const ChatsContent: React.FC = () => {
                 <p className="text-center text-sm"><button onClick={() => setLastChatDate(lastChatDate + 1)}>Read More</button></p>
                 <div className="flex flex-col gap-[6px] overflow-y-scroll" ref={scrollContainerRef} >
                   {msgList?.length ? msgList.map((message, idx) => {
-                    if (message.group_id === selectedGroupId) {
+                    if (message.group_id === currentGroupId) {
                       return (
                         <div key={idx} ref={setMsgItemRef(idx)}>
                           <Message
@@ -846,7 +968,7 @@ const ChatsContent: React.FC = () => {
                           sender_unban_request={message.sender_unban_request}
                           time={chatDate(`${message.Send_Time}`)}
                           ownMessage={message.Sender_Id === getCurrentUserId()}
-                          isCreater={false}
+                          isCreater={currentUserId == groupCreaterId}
                           read_time={message.Read_Time}
                           parentMsg={msgList.find(msg => msg.Id === message.parent_id)}
                           onDelete={messageDeleteButtonClicked}
