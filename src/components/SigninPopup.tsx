@@ -15,7 +15,7 @@ export const SigninPopup: React.FC<Props> = ({ isOpen, onClose, onSignin }) => {
   const passwordRef = useRef<HTMLInputElement>(null);
 
   const handleSignUpClick = () => {
-    window.location.href = '/signup'; // Replace with your actual sign-up URL
+    window.location.href = 'http://pingbash.com/auth?Collection=signUp'; // Replace with your actual sign-up URL
   };
 
   const isValidEmail = (email: string): boolean => {

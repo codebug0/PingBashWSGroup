@@ -11,7 +11,7 @@ import toast from "react-hot-toast";
 
 import { setIsExpanded } from "@/redux/slices/stateSlice";
 import { AppDispatch } from "@/redux/store";
-import { SERVER_URL } from "@/resource/const/const";
+import { SERVER_URL, TOKEN_KEY } from "@/resource/const/const";
 import httpCode from "@/resource/const/httpCode";
 import messages from "@/resource/const/messages";
 import { socket, userLoggedIn } from "@/resource/utils/chat";
@@ -30,7 +30,7 @@ const PageHeader: React.FC = () => {
 
   const getUserData = useCallback(async () => {
     try {
-      const token = localStorage.getItem(`MayaIQ_Token`);
+      const token = localStorage.getItem(TOKEN_KEY);
       const res = await axios.post(
         `${SERVER_URL}/api/private/get/myProfile/detail`,
         {},
@@ -68,11 +68,11 @@ const PageHeader: React.FC = () => {
 
   useEffect(() => {
     socket.on(ChatConst.REFRESH, () => {
-      socket.emit(ChatConst.USER_LOGGED, { token: localStorage.getItem(`MayaIQ_Token`) });
-      console.log("=== Socket Emit with Token ===; ", localStorage.getItem(`MayaIQ_Token`));
+      socket.emit(ChatConst.USER_LOGGED, { token: localStorage.getItem(TOKEN_KEY) });
+      console.log("=== Socket Emit with Token ===; ", localStorage.getItem(TOKEN_KEY));
     })
 
-    userLoggedIn(localStorage.getItem(`MayaIQ_Token`))
+    userLoggedIn(localStorage.getItem(TOKEN_KEY))
 
     // getUserData();
   }, [getUserData]);

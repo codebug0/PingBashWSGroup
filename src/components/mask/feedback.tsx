@@ -7,7 +7,7 @@
 
 import { setIsLoading, setShowFeedback } from "@/redux/slices/stateSlice";
 import { AppDispatch, RootState } from "@/redux/store";
-import { SERVER_URL } from "@/resource/const/const";
+import { SERVER_URL, TOKEN_KEY } from "@/resource/const/const";
 import messages from "@/resource/const/messages";
 import axios from "axios";
 import Image from "next/image";
@@ -32,7 +32,7 @@ const Feedback: React.FC<FeedbackProps> = () => {
         headers: {
           "Accept": "application/json",
           "Content-type": "application/json",
-          Authorization: localStorage.getItem(`MayaIQ_Token`),
+          Authorization: localStorage.getItem(TOKEN_KEY),
         }
       });
       toast.success(messages.common.successFeedback)

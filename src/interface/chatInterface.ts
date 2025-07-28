@@ -33,11 +33,26 @@ export interface ChatOption {
 export interface ChatGroup {
   id: number;
   name: string;
+  size_mode: string;
+  frame_width: number;
+  frame_height: number;
   creater_id: number;
   creater_name: string;
   members: ChatUser[];
   banned: number | null;
   unban_request: number | null;
+  bg_color:  string | null,
+  title_color:  string | null,
+  msg_bg_color:  string | null,
+  msg_txt_color:  string | null,
+  reply_msg_color:  string | null,
+  msg_date_color: string | null,
+  input_bg_color: string | null,
+  show_user_img: boolean | null,
+  custom_font_size: boolean | null,
+  font_size: number | null,
+  round_corners: boolean | null,
+  corner_radius: number | null
 }
 
 export interface MessageUnit {
@@ -64,12 +79,4 @@ export interface selectedUserDetail {
   Address: string | null;
   Email: string | null;
   Photo_Name: string | null;
-}
-
-export interface selectedGroupDetail {
-  id: number | null;
-  name: string | null;
-  creater_id: number | null;
-  creater_name: string | null;
-  members: ChatUser[] | null;
 }

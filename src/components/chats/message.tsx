@@ -20,8 +20,12 @@ interface MessageProps {
   ownMessage?: boolean, 
   isCreater: boolean,
   read_time: string | null,
+  message_color: string,
+  date_color: string,
+  show_avatar: boolean,
+  font_size: number,
+  reply_message_color: string;
   parentMsg: MessageUnit | undefined | null,
-  currUserid: number | null,
   onDelete: (msgId: number | null | undefined) => void;
   onBanUser: (userid: number | null) => void;
   onReplyMessage: (msgId: number | null | undefined) => void;
@@ -41,7 +45,11 @@ const Message: React.FC<MessageProps> = ({
     isCreater,
     read_time,
     parentMsg,
-    currUserid,
+    message_color,
+    date_color,
+    show_avatar,
+    font_size,
+    reply_message_color,
     onDelete,
     onBanUser,
     onReplyMessage,
@@ -79,9 +87,9 @@ const Message: React.FC<MessageProps> = ({
       type = "sticker"; value= "Sticker";
     }
     if (type === "text") {
-      return  <div className='text-[14px] mt-[3px]'>{value}</div>;
+      return  <div className='mt-[3px]' style={{fontSize: font_size - 2}}>{value}</div>;
     } else {
-      return  <div className='text-[13px] mt-[3px] text-gray-400'>{value}</div>;
+      return  <div className='mt-[3px]'>{value}</div>;
     }
   }
 
@@ -115,28 +123,31 @@ const Message: React.FC<MessageProps> = ({
           {/* Left Side: Avatar + Name + Message */}
           <div className="flex items-start gap-2">
             {/* Avatar */}
-            <Image
+            {show_avatar && <Image
               className="my-2 w-[40px] h-[40px] rounded-full object-cover"
               src={avatar || "/assets/default-user.svg"}
               alt="user"
               width={40}
               height={40}
-            />
+            />}
 
             {/* Name and Message on same line */}
             <div className="flex items-start gap-1 flex-nowrap">
-              <div className={`relative ${content.indexOf("<img") > -1 && "flex"} text-[15px] text-[#010101]  mt-[16px]`}>
-                <span className="text-[15px] font-bold text-[#010101] mr-[8px]">{sender}:</span>
+              <div className={`relative ${content.indexOf("<img") > -1 && "flex"} text-[15px]  mt-[16px]`} style={{color: message_color, fontSize: font_size}}>
+                <span className="font-bold  mr-[8px]" style={{fontSize: font_size}}>{sender}:</span>
                 {parentMsg && 
-                <div className="bg-[#1e81b022] flex-row-center rounded-[8px] overflow-y-hidden h-[42px] cursor-pointer"
+                <div className="flex-row-center rounded-[8px] overflow-y-hidden cursor-pointer" 
+                  style={{height: font_size * 3, background: reply_message_color + "22"}}
                   onClick={() => onReplyMsgPartClicked(parentMsg.Id)}>
-                  <div className="h-[45px] w-[4px] bg-[#1e81b0]"></div>
-                  {getReplyMsgImgHtml(parentMsg.Content)}
+                  <div className="h-[45px] w-[4px]" style={{background: reply_message_color}}></div>
+                  <div style={{fontSize: font_size - 1}}>
+                    {getReplyMsgImgHtml(parentMsg.Content)}
+                  </div>                  
                   <div className='ml-[8px] p-[4px] mr-[6px]'>
-                    <div className='font-bold text-[13px] text-[#1e81b0]'>
+                    <div className='font-bold' style={{color: reply_message_color}}>
                       {parentMsg.sender_name}
                     </div>
-                    <div>
+                    <div style={{color: message_color}} >
                       {getReplyMsgContentHtml(parentMsg.Content)}
                     </div>
                   </div>
@@ -166,17 +177,18 @@ const Message: React.FC<MessageProps> = ({
 
           {/* Time on right */}
           <div className="h-[16px] flex items-center  whitespace-nowrap absolute top-0 right-0 gap-2 mr-[12px]">
-            {currUserid != 0 && <p className="text-[12px] cursor-pointer text-[#8A8A8A] pr-[8px]"
-              onClick={onReplyButtonClicked}>Reply</p>}
-            <p className="text-[12px] text-[#8A8A8A]">{time}</p>
+            <p className="text-[12px] cursor-pointer pr-[8px]"
+              style={{color: date_color, fontSize: font_size * 0.8}}
+              onClick={onReplyButtonClicked}>Reply</p>
+            <p className="text-[12px]" style={{color: date_color, fontSize: font_size * 0.8}}>{time}</p>
             {isCreater && !ownMessage && 
             <button 
               onClick={onBanButtonClicked} disabled={sender_banned == 1 ? true : false} className={`${sender_banned == 1 ? "cursor-not-allowed" : "cursor-pointer"}`}>
-                <FontAwesomeIcon icon={faBan} className={`text-[16px] ${sender_banned == 1 ? "text-[#CFCFCF]" : "text-[#8A8A8A]"}`}/>
+                <FontAwesomeIcon icon={faBan} className={`text-[16px] ${sender_banned == 1 ? "text-[#CFCFCF]" : "text-[#8A8A8A]"}`} style={{color: date_color, fontSize: font_size * 0.8}}/>
             </button>}
             {isCreater && 
             <button onClick={onDeleteButtonClicked}>
-              <FontAwesomeIcon icon={faClose} className="text-[16px] text-[#8A8A8A]"/>
+              <FontAwesomeIcon icon={faClose} style={{color: date_color, fontSize: font_size * 0.8}}/>
             </button>}
           </div>
         </div>

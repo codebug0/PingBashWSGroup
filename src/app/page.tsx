@@ -6,14 +6,6 @@ import EmojiPicker from "@/components/chats/EmojiPicker";
 import Message from "@/components/chats/message";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
-  faArrowLeft, 
-  faArrowRight,
-  faPaperPlane,
-  faBars,
-  faClose,
-  faReply
-} from "@fortawesome/free-solid-svg-icons";
-import { 
   getGroupHistory, 
   getGroupHistoryAnon,
   sendGroupMsg, 
@@ -28,7 +20,7 @@ import {
 import { useSearchParams } from "next/navigation";
 import { Popover, PopoverTrigger, PopoverContent } from "@nextui-org/popover";
 import ChatConst from "@/resource/const/chat_const";
-import { GROUP_CREATER_ID, GROUP_MEMBER_IDS, SELECTED_GROUP_ID, SERVER_URL } from "@/resource/const/const";
+import { GROUP_CREATER_ID, GROUP_MEMBER_IDS, SELECTED_GROUP_ID, SERVER_URL, TOKEN_KEY, USER_ID_KEY } from "@/resource/const/const";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
 import { chatDate, now } from "@/resource/utils/helpers";
@@ -47,6 +39,38 @@ import { stickers } from '../components/chats/LottiesStickers';
 import { useSound } from "@/components/chats/useSound";
 import "./globals.css";
 import httpCode from "@/resource/const/httpCode";
+import { 
+  faArrowLeft, 
+  faArrowRight, 
+  faSearch, 
+  faPaperPlane,
+  faBars,
+  faClose,
+  faReply,
+  faPaperclip,
+  faVolumeUp
+} from "@fortawesome/free-solid-svg-icons";
+import {
+  faImages,
+  faFaceSmile,
+} from "@fortawesome/free-regular-svg-icons";
+import { 
+  ALLOW_USER_MSG_STYLE, 
+  BG_COLOR, 
+  BORDER_COLOR, 
+  CORNOR_RADIUS, 
+  FONT_SIZE, 
+  INPUT_BG_COLOR, 
+  MSG_BG_COLOR, 
+  MSG_COLOR, 
+  MSG_DATE_COLOR, 
+  OWNER_MSG_COLOR, 
+  REPLY_MGS_COLOR, 
+  ROUND_CORNORS, 
+  SCROLLBAR_COLOR, 
+  SHOW_USER_IMG, 
+  TITLE_COLOR 
+} from '@/resource/const/const';
 
 
 interface Attachment {
@@ -61,6 +85,37 @@ interface Group {
   members: string[];
 }
 
+interface ChatWidgetConfig {
+  sizeMode: 'fixed' | 'responsive';
+  width: number;
+  height: number;
+  colors: {
+    background: string;
+    border: string;
+    title: string;
+    ownerMsg: string;
+    msgBg: string;
+    msgText: string;
+    replyText: string;
+    scrollbar: string;
+    inputBg: string;
+    inputText: string;
+    dateText: string;
+    innerBorder: string;
+  };
+  settings: {
+    userImages: boolean;
+    allowUserMessageStyles: boolean;
+    customFontSize: boolean;
+    fontSize: number;
+    showTimestamp: boolean;
+    showUrl: boolean;
+    privateMessaging: boolean;
+    roundCorners: boolean;
+    cornerRadius: number;
+  };
+}
+
 const ChatsContent: React.FC = () => {
 
   const [inputMsg, setInputMsg] = useState("")
@@ -69,12 +124,12 @@ const ChatsContent: React.FC = () => {
   const [attachment, setAttachment] = useState<Attachment>()
 
   const msgList: MessageUnit[] = useSelector((state: RootState) => state.msg.messageList)
-  const userList = useSelector((state: RootState) => state.msg.chatUserList)
   const [prevMsgList, setPrevMsgList] = useState<MessageUnit[]>([]);
 
-  const groupList = useSelector((state: RootState) => state.msg.chatGroupList)
+  const [group, setGroup] = useState<ChatGroup>();
+  const [favGroups, setFavGroups] = useState<ChatGroup[]>([]);
 
-  // const [groups, setGroups] = useState<Group[]>([]);
+  // const groupList = useSelector((state: RootState) => state.msg.chatGroupList)
 
   const params = useSearchParams();
   const dispatch = useDispatch()
@@ -99,9 +154,8 @@ const ChatsContent: React.FC = () => {
   const [showMsgReplyView, setShowMsgReplyView] = useState<boolean | null>(null);
   const playBell = useSound("/sounds/sound_bell.wav");
   const [currentUserId, setCurrentUserId] = useState<number>(0);
-  const [currentGroupId, setCurrentGroupId] = useState<number | null>(0);
-  const [groupCreaterId, setGroupCreaterId] = useState<number | null>(0);
-  const [groupMemberIds, setGroupMemberIds] = useState<number[] | null>([]);
+  // const [currentGroupId, setCurrentGroupId] = useState<number | null>(0);
+  // const [groupCreaterId, setGroupCreaterId] = useState<number | null>(0);
   const [groupMenuOptions, setGroupMenuOptions] = useState<any[]>([])
   
   const soundMenuPopoverRef = useRef<HTMLImageElement>(null);
@@ -177,14 +231,12 @@ const ChatsContent: React.FC = () => {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768);
     }; 
-    const token = localStorage.getItem(`MayaIQ_Token`);
+    const token = localStorage.getItem(TOKEN_KEY);
     const groupId = getChatGroupID();
-    const userId = getCurrentUserId();   
-    console.log("=== userId ====", userId); 
-    setCurrentGroupId(groupId);
+    const userId = getCurrentUserId();
+    // setCurrentGroupId(groupId);
     setCurrentUserId(userId);
-    setGroupCreaterId(getGroupCreaterId());
-    setGroupMemberIds(getGroupMemberIds());
+    // setGroupCreaterId(getGroupCreaterId());
 
     if (getCurrentUserId() != 0 && token && groupId) {   
       loginAsReal(token, groupId, getAnonId());
@@ -202,9 +254,7 @@ const ChatsContent: React.FC = () => {
       if (data.success == "success") {
         registerAnon(getAnonToken(), getAnonId(), getSubDomain());
       }
-    };
-
-    
+    };   
 
     // Register socket listener
     socket.on(ChatConst.USER_LOGGED_AS_ANNON, handleLogginAsAnon);
@@ -226,10 +276,7 @@ const ChatsContent: React.FC = () => {
   }, []);
 
   const handleBanUser = (userId: number) => {
-    console.log("=== Banned UserId ===", userId);
-    console.log("=== Banned UserId ===", msgList);
     const updateMsgList = msgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 1} : msg);
-    console.log("=== Banned UserId ===", updateMsgList);
     setPrevMsgList(msgList);
     dispatch(setMessageList([...updateMsgList]));
   }
@@ -246,29 +293,9 @@ const ChatsContent: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const safeSetGroupMemberIds = (newIds: number[]) => {
-      if (isMounted) {
-        setGroupMemberIds(newIds);
-        localStorage.setItem(GROUP_MEMBER_IDS, JSON.stringify(newIds));
-      }
-    };
-
     const handleGetFavGroups = (data: ChatGroup[]) => {
       if (!isMounted) return;
-      let isMyFav = data.find(group => group.id == currentGroupId) != null;
-      if (isMyFav) {
-        if (groupMemberIds == null || groupMemberIds?.indexOf(currentUserId) == -1) {
-          if (groupMemberIds == null) {
-            safeSetGroupMemberIds([currentUserId]);
-          } else {
-            safeSetGroupMemberIds([...groupMemberIds, currentUserId]);
-          }
-        }
-      } else {
-        if (groupMemberIds != null) {
-          safeSetGroupMemberIds(groupMemberIds.filter(userId => userId != currentUserId));
-        }
-      }
+      setFavGroups(data);
     };
 
     // Register handlers
@@ -279,16 +306,16 @@ const ChatsContent: React.FC = () => {
       isMounted = false;
       socket.off(ChatConst.GET_FAV_GROUPS, handleGetFavGroups);
     };
-  }, [currentGroupId, groupMemberIds, currentUserId]);
+  }, [currentUserId]);
 
   useEffect(() => {
     setGroupMenuOptions([
       {id: 1, name: "Copy Group Link"},
-      {id: 2, name: groupMemberIds?.indexOf(currentUserId) == -1 ? "Add to My Groups" : "Remove from My Groups"},
+      {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
       // {id: 3, name: "Hide Chat"},
       // {id: 4, name: "Subscribe to Notifications"}
     ])
-  }, [groupMemberIds, currentUserId]);
+  }, [favGroups, group]);
 
   // To get the initial data for the users and the categegories for the dashboard
   const registerAnon = useCallback(async (token: string, anonId: number, groupName: string) => {
@@ -307,18 +334,15 @@ const ChatsContent: React.FC = () => {
           },
         }
       );
-      if (res.data.group_id == 0) {
+      if (res.data.group.length > 0) {
         dispatch(setIsLoading(false));
         toast.error(groupName + "group does not exist.");
         return;
       } 
-      setCurrentGroupId(res.data.group_id);
-      setGroupCreaterId(res.data.creater_id);
-      setGroupMemberIds(res.data.members);
-      localStorage.setItem(SELECTED_GROUP_ID, res.data.group_id);
-      localStorage.setItem(GROUP_CREATER_ID, res.data.creater_id);
-      localStorage.setItem(GROUP_MEMBER_IDS, JSON.stringify(res.data.members));
-      getGroupHistoryAnon(res.data.group_id, lastChatDate);
+      setGroup(res.data.group);
+      if (res.data.group != null) {
+        getGroupHistoryAnon(res.data.group.id, lastChatDate);
+      }      
     } catch (error) {
       // Handle error appropriately
     }
@@ -328,7 +352,7 @@ const ChatsContent: React.FC = () => {
   const getCurrentUserId = (): number => {
     let userId: string | null = "0";
     if (typeof window !== "undefined") {
-      userId = localStorage.getItem('MayaIQ_User');
+      userId = localStorage.getItem(USER_ID_KEY);
       if (userId == null) {
         userId = "0";
       }
@@ -358,14 +382,6 @@ const ChatsContent: React.FC = () => {
     return parseInt(createrId);
   }
 
-  const getGroupMemberIds = (): number[] => {
-    let memberIds: string = "[0]";
-    if (typeof window !== "undefined") {
-      memberIds = localStorage.getItem('myIntArray') ?? "[0]";
-    }    
-    return JSON.parse(memberIds);
-  }
-
   function mergeArrays(oldArray: MessageUnit[], newArray: MessageUnit[]): MessageUnit[] {
     const oldMap = new Map(oldArray.map(item => [item?.Id, item]));
     for (const newItem of newArray) {
@@ -377,7 +393,7 @@ const ChatsContent: React.FC = () => {
   // Receive the message afer sending the message.
   socket.on(ChatConst.SEND_GROUP_MSG, (data) => {    
     const groupId = data?.length && data[data.length - 1].group_id; 
-    if (groupId === currentGroupId) {
+    if (groupId === group?.id) {
       setPrevMsgList(msgList);
       const newList = mergeArrays(msgList, data);
       dispatch(setMessageList([...newList]));
@@ -410,7 +426,7 @@ const ChatsContent: React.FC = () => {
 
   socket.on(ChatConst.BAN_GROUP_USER, (data) => { 
     const groupId = data?.length && data[data.length - 1].group_id;    
-    if (groupId === currentGroupId) {
+    if (groupId === group?.id) {
       setPrevMsgList(msgList);
       dispatch(setMessageList([...data]))
     }
@@ -418,48 +434,18 @@ const ChatsContent: React.FC = () => {
 
   socket.on(ChatConst.UNBAN_GROUP_USER, (data) => { 
     const groupId = data?.length && data[data.length - 1].group_id;    
-    if (groupId === currentGroupId) {
+    if (groupId === group?.id) {
       setPrevMsgList(msgList);
       dispatch(setMessageList([...data]))
     }
-  });
-
-  // Receive the signal with socket for the new user login
-  socket.on(ChatConst.LOGGED_NEW_USER, (data) => {
-    const { ID, Socket } = data;
-
-    // Assuming userList is accessible here
-    const updatedList = userList.map((user) => {
-      if (user.Opposite_Id === ID) {
-        return { ...user, Opposite_Id: ID, Socket };
-      } else {
-        return user;
-      }
-    });
-    dispatch(setChatUserList([...updatedList]));
-  });
-
-  // Receive the signal with socket for the user logout
-  socket.on(ChatConst.USER_OUT, (data) => {
-    const oppositeId = data.ID;
-
-    const modifyList: User[] = userList.map(user => {
-      if (user.Opposite_Id === oppositeId) {
-        return { ...user, Socket: false };
-      }
-      return user;
-    });
-
-    dispatch(setChatUserList([...modifyList]));
   });
 
   socket.on(ChatConst.USER_LOGGED_WILD_SUB, (data) => {
   });
   
   useEffect(() => {
-    const token = localStorage.getItem(`MayaIQ_Token`)
-    if (localStorage.getItem(`MayaIQ_Token`) && token) {
-      console.log("===fetchSoundOption===");
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (localStorage.getItem(TOKEN_KEY) && token) {
       fetchSoundOption();
     }    
   }, [currentUserId]);
@@ -492,96 +478,42 @@ const ChatsContent: React.FC = () => {
     }
   }, [msgList]);
 
-  // useEffect(() => {
-  //   const container = scrollContainerRef.current
-  //   if (!container) return
-
-  //   scrollPositionRef.current = container.scrollTop
-  // }, [msgList.length])
-
-  // The action for messageList change
-  // useEffect(() => {
-  //   if (msgBox.current) {
-  //     msgBox.current.scrollIntoView({ behavior: "smooth" })
-  //     msgBox.current.scrollTop = msgBox.current.scrollHeight;
-  //   }
-  // }, [msgList]);
-
-  // useEffect(() => {
-  //   const container = scrollContainerRef.current
-  //   if (!container) return
-
-  //   const messageAdded = msgList.length > prevMsgCount.current
-
-  //   if (messageAdded) {
-  //     container.scrollTop = container.scrollHeight
-  //   } else {
-  //     container.scrollTop = scrollPositionRef.current
-  //   }
-
-  //   prevMsgCount.current = msgList.length
-  // }, [msgList])
-
   // The action for the last chat date
   useEffect(() => {
     if (lastChatDate == 1) return;
-    const token = localStorage.getItem(`MayaIQ_Token`);
-    getGroupHistory(token, currentGroupId, lastChatDate);
+    const token = localStorage.getItem(TOKEN_KEY);
+    getGroupHistory(token, group?.id, lastChatDate);
   }, [lastChatDate])
 
   // The action for the message send action
-  const sendMsgHandler = () => {
-
-  //   if (attachment?.type && attachment.type === 'file') {
-  //     sendMsg(selectedUser?.Id, `<a className="inline-block text-cyan-300 hover:underline w-8/12 relative rounded-e-md" 
-  //  href=${SERVER_URL + ""}/uploads/chats/files/${attachment.url}>File Name : ${attachment.url}</a>`
-  //       , localStorage.getItem(`MayaIQ_Token`))
-  //   } else if (attachment?.type && attachment.type === 'image') {
-  //     sendMsg(selectedUser?.Id, `<img src='${SERVER_URL}/uploads/chats/images/${attachment?.url}' alt="" />`, localStorage.getItem(`MayaIQ_Token`))
-  //   } else {
-  //     if (inputMsg.length > 0) {
-  //       const token = localStorage.getItem(`MayaIQ_Token`)
-  //       sendMsg(selectedUser?.Id, inputMsg, token)
-  //       setInputMsg("")
-  //     }
-  //   }
-  //   setAttachment({ type: null, url: null })
-  }
-
-  // The action for the message send action
   const sendGroupMsgHandler = (type: string, value: string) => {
-    console.log("===Message List ====", msgList);
-    const selectedGroup = groupList.find((group => group.id == currentGroupId)); 
-    if (selectedGroup?.banned == 1) {
+    if (group?.banned == 1) {
       toast.error("You can't send message now. You are banned.");
       setInputMsg("");
       return;
-    }
-    let receivers = selectedGroup?.members?.filter((member) => member.id != getCurrentUserId()).map(member => member.id); 
-    if (receivers == null) receivers = []; 
+    } 
     if (attachment?.type && attachment.type === 'file') {
-      sendGroupMsg(currentGroupId, `<a className="inline-block text-cyan-300 hover:underline w-8/12 relative rounded-e-md" 
+      sendGroupMsg(group?.id, `<a className="inline-block text-cyan-300 hover:underline w-8/12 relative rounded-e-md" 
       href=${SERVER_URL + ""}/uploads/chats/files/${attachment.url}>File Name : ${attachment.url}</a>`
-        , localStorage.getItem(`MayaIQ_Token`), receivers, replyMsg?.Id)
+        , localStorage.getItem(TOKEN_KEY), replyMsg?.Id)
     } else if (attachment?.type && attachment.type === 'image') {
       sendGroupMsg(
-        currentGroupId, 
+        group?.id, 
         `<img src='${SERVER_URL}/uploads/chats/images/${attachment?.url}' alt="" />`, 
-        localStorage.getItem(`MayaIQ_Token`), 
-        receivers,
+        localStorage.getItem(TOKEN_KEY), 
         replyMsg?.Id
       )
     } else {
-      const token = localStorage.getItem(`MayaIQ_Token`);
-      console.log("=== Role ====;", `MayaIQ_Token`);
+      const token = localStorage.getItem(TOKEN_KEY);
+      console.log("=== Role ====;", TOKEN_KEY);
       console.log("==== Send Message Token ====", token);
        if (type === "gif") {
-        sendGroupMsg(currentGroupId, value, token, receivers, replyMsg?.Id);
+        sendGroupMsg(group?.id, value, token, replyMsg?.Id);
       } else if (type === "sticker") {
-        sendGroupMsg(currentGroupId, value, token, receivers, replyMsg?.Id);
+        sendGroupMsg(group?.id, value, token, replyMsg?.Id);
       } else {
         if (inputMsg.length > 0) {        
-          sendGroupMsg(currentGroupId, inputMsg, token, receivers, replyMsg?.Id);       
+          sendGroupMsg(group?.id, inputMsg, token, replyMsg?.Id);       
           setInputMsg(""); 
           setShowEmoji(false);         
         }
@@ -608,7 +540,7 @@ const ChatsContent: React.FC = () => {
           {
             "Accept": "application/json",
             'Content-Type': 'multipart/form-data',
-            'Authorization': localStorage.getItem(`MayaIQ_Token`) || "",
+            'Authorization': localStorage.getItem(TOKEN_KEY) || "",
           }
         })
         setAttachment(Object.assign({}, { type: "image", url: res.data }))
@@ -634,7 +566,7 @@ const ChatsContent: React.FC = () => {
           {
             "Accept": "application/json",
             'Content-Type': 'multipart/form-data',
-            'Authorization': localStorage.getItem(`MayaIQ_Token`) || "",
+            'Authorization': localStorage.getItem(TOKEN_KEY) || "",
           }
         })
         setAttachment(Object.assign({}, { type: "file", url: res.data }))
@@ -652,7 +584,7 @@ const ChatsContent: React.FC = () => {
         {
           "Accept": "application/json",
           'Content-Type': 'multipart/form-data',
-          'Authorization': localStorage.getItem(`MayaIQ_Token`) || "",
+          'Authorization': localStorage.getItem(TOKEN_KEY) || "",
         }
       })
       setAttachment(Object.assign({}, { type: null, url: null }))
@@ -677,25 +609,23 @@ const ChatsContent: React.FC = () => {
 
   const banUser = () => {
     if (banUserId == null) return;
-    const token = localStorage.getItem(`MayaIQ_Token`)
-    banGroupUser(token, currentGroupId, banUserId, []);
+    const token = localStorage.getItem(TOKEN_KEY)
+    banGroupUser(token, group?.id, banUserId);
     setOpenBanUserConfirmPopup(false);
     setBanUserId(null);
   }
 
   const unbanUser = () => {
-    const token = localStorage.getItem(`MayaIQ_Token`)
-    const selectedGroup = groupList.find((group => group.id == currentGroupId)); 
-    const receivers = selectedGroup?.members?.filter((member) => member.id != getCurrentUserId()).map(member => member.id); 
-    unbanGroupUser(token, currentGroupId, getCurrentUserId(), receivers);
+    const token = localStorage.getItem(TOKEN_KEY)
+    unbanGroupUser(token, group?.id, getCurrentUserId());
     setOpenUnbanReqConfirmPopup(false);
   }
 
   const deleteMessage = () => {  
     console.log("aaaa");  
     if (deleteMsgId == null) return;
-    const token = localStorage.getItem(`MayaIQ_Token`)
-    deleteGroupMsg(token, deleteMsgId, currentGroupId, []);
+    const token = localStorage.getItem(TOKEN_KEY)
+    deleteGroupMsg(token, deleteMsgId, group?.id);
     setOpenMsgDeleteConfirmPopup(false);
     setDeleteMsgId(null);
   }
@@ -730,9 +660,9 @@ const ChatsContent: React.FC = () => {
         toast.error("Failed to copy URL: " + err);
       }
     } else if (menuId == 2) {
-      let groupIdFav = groupMemberIds?.find(memberId => memberId === currentUserId) != null;
+      let groupIdFav = favGroups?.find(grp => grp.id == group?.id) != null;
       let updateIsMember = groupIdFav ? 0 : 1;
-      updateGroupFavInfo(localStorage.getItem(`MayaIQ_Token`), currentGroupId, updateIsMember);
+      updateGroupFavInfo(localStorage.getItem(TOKEN_KEY), group?.id, updateIsMember);
     }
   }
 
@@ -829,7 +759,7 @@ const ChatsContent: React.FC = () => {
           headers: {
             "Accept": "application/json",
             "Content-type": "application/json",
-            Authorization: localStorage.getItem(`MayaIQ_Token`),
+            Authorization: localStorage.getItem(TOKEN_KEY),
           },
         });
       
@@ -863,7 +793,7 @@ const ChatsContent: React.FC = () => {
           headers: {
             "Accept": "application/json",
             "Content-type": "application/json",
-            Authorization: localStorage.getItem(`MayaIQ_Token`),
+            Authorization: localStorage.getItem(TOKEN_KEY),
           },
         });
       setMySoundOptionId(optionVal);
@@ -885,9 +815,9 @@ const ChatsContent: React.FC = () => {
         if (res.status === httpCode.SUCCESS) {
           toast.success(messages.login.success);
           setCurrentUserId(res.data.id);
-          localStorage.setItem("MayaIQ_User", res.data.id);
-          localStorage.setItem(`MayaIQ_Token`, res.data.token);
-          loginAsReal(res.data.token, currentGroupId, getAnonId());
+          localStorage.setItem(USER_ID_KEY, res.data.id);
+          localStorage.setItem(TOKEN_KEY, res.data.token);
+          loginAsReal(res.data.token, group?.id, getAnonId());
           setShowSigninPopup(false);
         } else if (res.status === httpCode.NOT_MATCHED) {
           toast.error(messages.common.notMatched);
@@ -905,6 +835,8 @@ const ChatsContent: React.FC = () => {
   return (
     <div className="page-container bg-white">      
       {/* Chats Area Start */}
+      {/* <ChatangoWidget /> */}
+      {/* <iframe src="http://mg.pingbash.com" width="800" height="600"></iframe> */}
       <div className="content-wrapper w-full max-lg:px-0 h-screen overflow-y-auto overflow-x-hidden">
         <div className="page-content w-full pt-[36px] flex flex-col px-[24px] pb-[24px] relative max-lg:px-[20px] max-lg:pt-0 max-lg:top-[52px] max-[810px]:pb-[20px]">
           {/* <PageHeader /> */}
@@ -914,16 +846,31 @@ const ChatsContent: React.FC = () => {
             {/* Chat Left Side End ---Chat History */}
 
             {/* Chat Right Side Start ---Message History */}
-            <section className={`flex flex-col justify-between border border-gray-500 rounded-[10px] w-[50%] duration-500 max-[810px]:w-full`}>
+            <section className={`flex flex-col justify-between border border-gray-500 rounded-[10px] duration-500 max-[810px]:w-full`}
+              style={{
+                borderRadius: group?.round_corners ? group.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                width: group?.size_mode == "fixed" ? group.frame_width : "100%",
+                height: group?.size_mode == "fixed" ? group.frame_height : "100%",
+                maxWidth: "100%",
+                maxHeight: "100%"
+              }}
+            >
 
               {/* Chat Right Side Header Start */}
-              {currentGroupId != 0 && <nav className="shadow-lg shadow-slate-300 select-none px-[20px] py-[16px] gap-[10px] border-b flex justify-between flex-wrap">
+              {group?.id != 0 && 
+              <nav className="shadow-lg shadow-slate-300 select-none px-[20px] py-[16px] gap-[10px] border-b flex justify-between flex-wrap"
+                style={{background: group?.bg_color ?? BG_COLOR, 
+                  borderTopLeftRadius: group?.round_corners ? group?.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                  borderTopRightRadius: group?.round_corners ? group?.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                  color: group?.title_color ?? TITLE_COLOR, zIndex: 1
+                }}
+              >
                 <div className="flex gap-[16px] items-center">
                   <span className="hidden max-[810px]:flex"><FontAwesomeIcon icon={userNavShow ? faArrowRight : faArrowLeft} onClick={() => setUserNavShow(!userNavShow)} /></span>
                   
                   <div>
                     <p className="flex justify-start max-[810px]:flex-col items-center gap-[5px] whitespace-nowrap truncate">
-                      <span className="text-[20px] font-bold truncate w-[100%]">{getSubDomain()}</span>
+                      <span className="text-[20px] font-bold truncate w-[100%]">{group?.name}</span>
                   </p>
                   </div>
                 </div>
@@ -950,11 +897,13 @@ const ChatsContent: React.FC = () => {
               {/* Chat Right Side Header End */}
 
               {/* Chat Article Start */}
-              <article className="overflow-y-auto h-full flex flex-col px-[14px] pt-[20px] overflow-x-hidden min-h-20">
+              <article className="overflow-y-auto h-full flex flex-col px-[14px] pt-[20px] overflow-x-hidden min-h-20"
+                style={{background: group?.msg_bg_color ?? MSG_BG_COLOR}}
+              >
                 <p className="text-center text-sm"><button onClick={() => setLastChatDate(lastChatDate + 1)}>Read More</button></p>
                 <div className="flex flex-col gap-[6px] overflow-y-scroll" ref={scrollContainerRef} >
                   {msgList?.length ? msgList.map((message, idx) => {
-                    if (message.group_id === currentGroupId) {
+                    if (message.group_id === group?.id) {
                       return (
                         <div key={idx} ref={setMsgItemRef(idx)}>
                           <Message
@@ -968,7 +917,7 @@ const ChatsContent: React.FC = () => {
                           sender_unban_request={message.sender_unban_request}
                           time={chatDate(`${message.Send_Time}`)}
                           ownMessage={message.Sender_Id === getCurrentUserId()}
-                          isCreater={currentUserId == groupCreaterId}
+                          isCreater={currentUserId == group?.creater_id}
                           read_time={message.Read_Time}
                           parentMsg={msgList.find(msg => msg.Id === message.parent_id)}
                           onDelete={messageDeleteButtonClicked}
@@ -980,7 +929,11 @@ const ChatsContent: React.FC = () => {
                           onReplyMsgPartClicked={(msgId) => {
                             scrollToRepliedMsg(msgId);
                           }}
-                          currUserid={getCurrentUserId()}
+                          show_avatar={group.show_user_img ?? SHOW_USER_IMG}
+                          font_size={group.custom_font_size ? group.font_size ?? FONT_SIZE : FONT_SIZE}
+                          message_color={group.msg_txt_color ?? MSG_COLOR}
+                          date_color={group.msg_date_color ?? MSG_DATE_COLOR}
+                          reply_message_color={group.reply_msg_color ?? REPLY_MGS_COLOR}
                         />
                         </div>
                         
@@ -990,7 +943,13 @@ const ChatsContent: React.FC = () => {
                   }) : ""}</div>
               </article>
               {/* Chat Article End */}
-              <nav className={`relative max-[320px]:px-[5px] gap-[10px] flex flex-col border-t ${isMobile ? "p-[8px]" : "px-[12px] py-[6px]"}`}>
+              <nav className={`relative max-[320px]:px-[5px] gap-[10px] flex flex-col border-t ${isMobile ? "p-[8px]" : "px-[12px] py-[6px]"}`}
+                style={{background: group?.bg_color ?? BG_COLOR, 
+                  borderBottomLeftRadius: group?.round_corners ? group.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                  borderBottomRightRadius: group?.round_corners ? group.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                  color: group?.title_color ?? TITLE_COLOR
+                }}
+              >
                 {/* start upload preview for image or file */}
                 {attachment?.type && <div className="upload-preview relative">
                   {attachment.type === 'image' && <Image className="h-[100px] w-auto" src={`${SERVER_URL}/uploads/chats/images/${attachment.url}`} alt="" width={100} height={100} />}
@@ -1019,9 +978,11 @@ const ChatsContent: React.FC = () => {
                 <div className="flex max-sm:flex-col-reverse justify-between gap-[10px] items-center">
                   
                   <div className="flex gap-[10px] min-w-[126px] relative cursor-pointer max-[810px]:w-full">
-                    <Image onClick={() => imageUploadRef.current?.click()} className="w-[24px] h-[24px]" src={`/assets/light/chats/images.svg`} alt="" width={100} height={100} />
+                    <span onClick={() => imageUploadRef.current?.click()} className="w-[24px] h-[24px]"><FontAwesomeIcon icon={faImages} className="text-[24px]" /></span>
+                    {/* <Image onClick={() => imageUploadRef.current?.click()} className="w-[24px] h-[24px]" src={`/assets/light/chats/images.svg`} alt="" width={100} height={100} /> */}
                     <input ref={imageUploadRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" />
-                    <Image onClick={() => fileUploadRef.current?.click()} className="w-[24px] h-[24px]" src={`/assets/light/chats/paperclip.svg`} alt="" width={100} height={100} />
+                    <span onClick={() => fileUploadRef.current?.click()} className="w-[24px] h-[24px]"><FontAwesomeIcon icon={faPaperclip} className="text-[24px]" /></span>
+                    {/* <Image onClick={() => fileUploadRef.current?.click()} className="w-[24px] h-[24px]" src={`/assets/light/chats/paperclip.svg`} alt="" width={100} height={100} /> */}
                     <input ref={fileUploadRef} type="file" onChange={handleFileUpload} className="hidden" />
                     {showEmoji &&
                     <div className=" absolute bottom-[3em] max-[810px]:bottom-[5.5em] w-[370px] h-[415px]">                      
@@ -1043,16 +1004,18 @@ const ChatsContent: React.FC = () => {
                         }}
                       />
                     </div>}
-                    <Image onClick={() => setShowEmoji(!showEmoji)} className={`w-[24px] h-[24px] ${showEmoji && "bg-gray-200"}`} src={`/assets/light/chats/smile.svg`} alt="" width={100} height={100} />
+                    <span onClick={() => setShowEmoji(!showEmoji)} className="w-[24px] h-[24px]"><FontAwesomeIcon icon={faFaceSmile} className="text-[24px]" /></span>
+                    {/* <Image onClick={() => setShowEmoji(!showEmoji)} className={`w-[24px] h-[24px] ${showEmoji && "bg-gray-200"}`} src={`/assets/light/chats/smile.svg`} alt="" width={100} height={100} /> */}
                     <Popover placement="bottom-start" showArrow >
                       <PopoverTrigger>
-                        <Image 
+                        <span className="w-[24px] h-[24px]" ref={soundMenuPopoverRef}><FontAwesomeIcon icon={faVolumeUp} className="text-[24px]" /></span>
+                        {/* <Image 
                           className={`w-[24px] h-[24px] bg-gray-200`} 
                           src={mySoundOptionId == 0 || mySoundOptionId == null || mySoundOptionId == undefined ? `/assets/light/chats/speaker_off.svg` : `/assets/light/chats/speaker_on.svg`} 
                           alt="" 
                           width={100} 
                           height={100}
-                          ref={soundMenuPopoverRef} />
+                          ref={soundMenuPopoverRef} /> */}
                       </PopoverTrigger>
                       <PopoverContent className="relative bg-white dark:bg-zinc-100 border rounded-md shadow-md p-4 w-72">
                         <button
@@ -1099,8 +1062,19 @@ const ChatsContent: React.FC = () => {
                     </Popover>
                     
                   </div>
-                  <div className={`flex w-full items-center justify-between p-[6px] ${isMobile ? "pl-12px" : "pl-[16px]"} rounded-full border`}>
-                    <input type="text" ref={inputMsgRef} onKeyDown={(e) => e.keyCode === 13 && sendGroupMsgHandler("msg", "")} value={inputMsg} onChange={(e) => setInputMsg(e.target.value)} className="w-full outline-none text-[14px] leading-[24px]" placeholder="Write a message" />
+                  <div className={`flex w-full items-center justify-between p-[6px] ${isMobile ? "pl-12px" : "pl-[16px]"} rounded-full border`}
+                    style={{background: group?.input_bg_color ?? INPUT_BG_COLOR}}
+                  >
+                    <input 
+                      type="text" 
+                      ref={inputMsgRef} 
+                      onKeyDown={(e) => e.keyCode === 13 && sendGroupMsgHandler("msg", "")} 
+                      value={inputMsg} 
+                      onChange={(e) => setInputMsg(e.target.value)} 
+                      className="w-full outline-none text-[14px] leading-[24px]" 
+                      placeholder="Write a message" 
+                       style={{background: group?.input_bg_color ?? INPUT_BG_COLOR, color: group?.msg_txt_color ?? MSG_COLOR}}
+                      />
                     <button onClick={() => sendGroupMsgHandler("msg", "")} className="h-[30px] active:translate-y-[2px] py-[3px] max-[320px]:px-[12px] px-[26px] rounded-full text-[14px] max-[320px]:text-[10px] text-white bg-gradient-to-r from-[#BD00FF] to-[#3A4EFF]">
                       {isMobile ? <span className="hidden max-[810px]:flex"><FontAwesomeIcon icon={faPaperPlane} className="text-[16px]" /></span> : "Send"}
                     </button>
@@ -1110,7 +1084,15 @@ const ChatsContent: React.FC = () => {
 
                 {/* Add Sign in button for the anons */}
                 {(currentUserId == 0 || currentUserId == null) && <div className="z-[11] w-full h-full absolute bottom-[0px] right-[0px] py-[3px] border-t px-[8px]" onClick={() => {setShowSigninPopup(true)}}>
-                  <div className="h-full w-full bg-white flex justify-center items-center cursor-pointer">
+                  <div 
+                    className="h-full w-full bg-white flex justify-center items-center cursor-pointer"
+                    style={{
+                      background: group?.bg_color ?? BG_COLOR,
+                      borderBottomLeftRadius: group?.round_corners ? group.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                      borderBottomRightRadius: group?.round_corners ? group.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                      color: group?.title_color ?? TITLE_COLOR
+                    }}
+                  >
                         Sign in
                   </div>
                 </div>}                
