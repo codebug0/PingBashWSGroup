@@ -14,8 +14,10 @@ export const TOKEN_KEY = "MayaIQ_Token";
 export const USER_ID_KEY = "MayaIQ_User";
 
 // Group Chatting box Style Default Params
-export const BG_COLOR = "#FFFFFF"
-export const BORDER_COLOR =  '#CC0000'
+export const SIZE_MODE = "responsive";
+
+export const BG_COLOR = "#FFFFFF";
+export const BORDER_COLOR =  '#CC0000';
 export const TITLE_COLOR = '#333333';
 export const OWNER_MSG_COLOR = '#FFFFFF';
 export const MSG_BG_COLOR = '#FFFFFF';

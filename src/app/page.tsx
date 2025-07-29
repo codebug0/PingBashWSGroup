@@ -23,8 +23,7 @@ import ChatConst from "@/resource/const/chat_const";
 import { GROUP_CREATER_ID, GROUP_MEMBER_IDS, SELECTED_GROUP_ID, SERVER_URL, TOKEN_KEY, USER_ID_KEY } from "@/resource/const/const";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
-import { chatDate, now } from "@/resource/utils/helpers";
-import { setChatUserList } from "@/redux/slices/messageSlice";
+import { chatDate } from "@/resource/utils/helpers";
 import { MessageUnit, User, ChatOption, ChatGroup } from "@/interface/chatInterface";
 import { setMessageList } from "@/redux/slices/messageSlice";
 import toast from "react-hot-toast";
@@ -42,7 +41,6 @@ import httpCode from "@/resource/const/httpCode";
 import { 
   faArrowLeft, 
   faArrowRight, 
-  faSearch, 
   faPaperPlane,
   faBars,
   faClose,
@@ -71,6 +69,9 @@ import {
   SHOW_USER_IMG, 
   TITLE_COLOR 
 } from '@/resource/const/const';
+import { darkenColor } from "@/resource/utils/colors";
+import SwitchButton from "@/components/SwitchButton";
+import { v4 as uuidv4 } from 'uuid';
 
 
 interface Attachment {
@@ -147,7 +148,7 @@ const ChatsContent: React.FC = () => {
   const [openBanUserConfirmPopup, setOpenBanUserConfirmPopup] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const groupMemuPopoverRef = useRef<HTMLButtonElement>(null);
+  const groupMemuPopoverRef = useRef<HTMLDivElement>(null);
   const msgItemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const [replyMsg, setReplyMsg] = useState<MessageUnit | null | undefined>();
@@ -172,6 +173,39 @@ const ChatsContent: React.FC = () => {
 
   const [userNavShow, setUserNavShow] = useState(params.get("User") ? false : true);
 
+  const [groupConfig, setGroupConfig] = useState<ChatWidgetConfig>({
+    sizeMode: 'fixed',
+    width: 500,
+    height: 400,
+    colors: {
+      background: BG_COLOR,
+      border: BORDER_COLOR,
+      title: TITLE_COLOR,
+      ownerMsg: OWNER_MSG_COLOR,
+      msgBg: MSG_BG_COLOR,
+      replyText: REPLY_MGS_COLOR,
+      msgText: MSG_COLOR,
+      scrollbar: SCROLLBAR_COLOR,
+      inputBg: INPUT_BG_COLOR,
+      inputText: '#000000',
+      dateText: MSG_DATE_COLOR,
+      innerBorder: '#CC0000'
+    },
+    settings: {
+      userImages: SHOW_USER_IMG,
+      allowUserMessageStyles: ALLOW_USER_MSG_STYLE,
+      customFontSize: false,
+      fontSize: FONT_SIZE,
+      showTimestamp: false,
+      showUrl: false,
+      privateMessaging: false,
+      roundCorners: ROUND_CORNORS,
+      cornerRadius: CORNOR_RADIUS
+    }
+  });
+
+  const [isDarkMode, setDarkMode] = useState(false);
+
   const getSubDomain = () => {
     const hostname = window.location.hostname; // e.g., "blog.example.com"
     const parts = hostname.split('.');
@@ -184,23 +218,7 @@ const ChatsContent: React.FC = () => {
       subdomain = ''; // No subdomain, e.g., "example.com" or "localhost"
     }
     return subdomain;
-  }
-
-  function getBrowserUUID() {
-    let uuid = localStorage.getItem("browser_uuid");
-    if (!uuid) {
-      uuid = crypto.randomUUID(); // Use `uuidv4()` from 'uuid' lib if needed
-      localStorage.setItem("browser_uuid", uuid);
-    } 
-    return uuid;
-  }
-
-  function getAnonToken() {
-    const groupName = getSubDomain();    
-    const browserUUid = getBrowserUUID();
-    const anontoken = "anonuser" + groupName + browserUUid;
-    return anontoken
-  }
+  }  
 
   const getBrowserFingerprint = (): string => {
     return [
@@ -250,6 +268,22 @@ const ChatsContent: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const getBrowserUUID = () => {
+      let uuid = localStorage.getItem("browser_uuid");
+      if (!uuid) {
+        uuid = uuidv4();//crypto.randomUUID(); // Use `uuidv4()` from 'uuid' lib if needed
+        localStorage.setItem("browser_uuid", uuid);
+      } 
+      return uuid;
+    }
+
+    const getAnonToken = () => {
+      const groupName = getSubDomain();    
+      const browserUUid = getBrowserUUID();
+      const anontoken = "anonuser" + groupName + browserUUid;
+      return anontoken
+    }
+    
     const handleLogginAsAnon = (data: any) => {
       if (data.success == "success") {
         registerAnon(getAnonToken(), getAnonId(), getSubDomain());
@@ -274,6 +308,61 @@ const ChatsContent: React.FC = () => {
       })
     };
   }, []);
+
+  useEffect(() => {
+
+    if (!isDarkMode) {
+      setGroupConfig({
+        ...groupConfig,
+        sizeMode: group?.size_mode ?? "fixed",
+        width: group?.frame_width ?? 500,
+        height: group?.frame_height ?? 400,
+        colors: {
+          ...groupConfig.colors,
+          background: group?.bg_color ?? BG_COLOR,
+          title: group?.title_color ?? TITLE_COLOR,
+          msgBg: group?.msg_bg_color ?? MSG_BG_COLOR,
+          replyText: group?.reply_msg_color ?? REPLY_MGS_COLOR,
+          msgText: group?.msg_txt_color ?? MSG_COLOR,
+          dateText: group?.msg_date_color ?? MSG_DATE_COLOR,      
+          inputBg: group?.input_bg_color ?? INPUT_BG_COLOR,
+        },
+        settings: {
+          ...groupConfig.settings,
+          userImages: group?.show_user_img ?? SHOW_USER_IMG,
+          customFontSize: group?.custom_font_size ?? false,
+          fontSize: group?.font_size ?? FONT_SIZE,
+          roundCorners: group?.round_corners ?? false,
+          cornerRadius: group?.corner_radius ?? CORNOR_RADIUS
+        }
+      });
+    } else {
+      setGroupConfig({
+        ...groupConfig,
+        sizeMode: group?.size_mode ?? "fixed",
+        width: group?.frame_width ?? 500,
+        height: group?.frame_height ?? 400,
+        colors: {
+          ...groupConfig.colors,
+          background: darkenColor(group?.bg_color ?? BG_COLOR),
+          title: darkenColor(group?.title_color ?? TITLE_COLOR),
+          msgBg: darkenColor(group?.msg_bg_color ?? MSG_BG_COLOR),
+          replyText: darkenColor(group?.reply_msg_color ?? REPLY_MGS_COLOR),
+          msgText: darkenColor(group?.msg_txt_color ?? MSG_COLOR),
+          dateText: darkenColor(group?.msg_date_color ?? MSG_DATE_COLOR),      
+          inputBg: darkenColor(group?.input_bg_color ?? INPUT_BG_COLOR),
+        },
+        settings: {
+          ...groupConfig.settings,
+          userImages: group?.show_user_img ?? SHOW_USER_IMG,
+          customFontSize: group?.custom_font_size ?? false,
+          fontSize: group?.font_size ?? FONT_SIZE,
+          roundCorners: group?.round_corners ?? false,
+          cornerRadius: group?.corner_radius ?? CORNOR_RADIUS
+        }
+      });
+    }   
+  }, [group, isDarkMode]);
 
   const handleBanUser = (userId: number) => {
     const updateMsgList = msgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 1} : msg);
@@ -694,7 +783,7 @@ const ChatsContent: React.FC = () => {
   const getReplyMsgImgHtml = (content: string | null) => {
     if (content!.indexOf("<img") > -1) {
       let contentStr = content!.replace("<img", "<img style='height: 36px'")
-      return <span
+      return <div
         className="inline-block w-fit h-[36px]"
         dangerouslySetInnerHTML={{ __html: contentStr! }}
       />;
@@ -848,9 +937,9 @@ const ChatsContent: React.FC = () => {
             {/* Chat Right Side Start ---Message History */}
             <section className={`flex flex-col justify-between border border-gray-500 rounded-[10px] duration-500 max-[810px]:w-full`}
               style={{
-                borderRadius: group?.round_corners ? group.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
-                width: group?.size_mode == "fixed" ? group.frame_width : "100%",
-                height: group?.size_mode == "fixed" ? group.frame_height : "100%",
+                borderRadius: groupConfig.settings.roundCorners ? groupConfig.settings.cornerRadius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                width: groupConfig.sizeMode == "fixed" ? groupConfig.width : "100%",
+                height: groupConfig.sizeMode == "fixed" ? groupConfig.height : "100%",
                 maxWidth: "100%",
                 maxHeight: "100%"
               }}
@@ -859,26 +948,26 @@ const ChatsContent: React.FC = () => {
               {/* Chat Right Side Header Start */}
               {group?.id != 0 && 
               <nav className="shadow-lg shadow-slate-300 select-none px-[20px] py-[16px] gap-[10px] border-b flex justify-between flex-wrap"
-                style={{background: group?.bg_color ?? BG_COLOR, 
-                  borderTopLeftRadius: group?.round_corners ? group?.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
-                  borderTopRightRadius: group?.round_corners ? group?.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                style={{background: groupConfig.colors.background ?? BG_COLOR, 
+                  borderTopLeftRadius: groupConfig.settings.roundCorners ? groupConfig.settings.cornerRadius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                  borderTopRightRadius: groupConfig.settings.roundCorners ? groupConfig.settings.cornerRadius ?? CORNOR_RADIUS : CORNOR_RADIUS,
                   color: group?.title_color ?? TITLE_COLOR, zIndex: 1
                 }}
               >
                 <div className="flex gap-[16px] items-center">
-                  <span className="hidden max-[810px]:flex"><FontAwesomeIcon icon={userNavShow ? faArrowRight : faArrowLeft} onClick={() => setUserNavShow(!userNavShow)} /></span>
+                  <div className="hidden max-[810px]:flex"><FontAwesomeIcon icon={userNavShow ? faArrowRight : faArrowLeft} onClick={() => setUserNavShow(!userNavShow)} /></div>
                   
                   <div>
-                    <p className="flex justify-start max-[810px]:flex-col items-center gap-[5px] whitespace-nowrap truncate">
-                      <span className="text-[20px] font-bold truncate w-[100%]">{group?.name}</span>
-                  </p>
+                    <div className="flex justify-start max-[810px]:flex-col items-center gap-[5px] whitespace-nowrap truncate">
+                      <div className="text-[20px] font-bold truncate w-[100%]">{group?.name}</div>
+                  </div>
                   </div>
                 </div>
-                {getCurrentUserId() != 0 && <Popover placement="bottom-start" showArrow >
+                {currentUserId != 0 && <Popover placement="bottom-start" showArrow >
                   <PopoverTrigger>
-                    <span className="max-[810px]:flex cursor-pointer" ref={groupMemuPopoverRef}><FontAwesomeIcon icon={faBars} className="text-[14px]" /></span>
+                    <div className="max-[810px]:flex cursor-pointer" ref={groupMemuPopoverRef}><FontAwesomeIcon icon={faBars} className="text-[14px]" /></div>
                   </PopoverTrigger>
-                  <PopoverContent className="bg-white dark:bg-zinc-100 border rounded-md shadow-md w-64">
+                  <PopoverContent className="bg-white dark:bg-zinc-100 border rounded-md shadow-md w-64 p-[16px]">
                     <ul className="flex flex-col gap-2">
                       {groupMenuOptions.map((item, index) => (
                         <li
@@ -889,6 +978,7 @@ const ChatsContent: React.FC = () => {
                           {item.name}
                         </li>
                       ))}
+                      <SwitchButton enabled={isDarkMode} onToggle={setDarkMode} />
                     </ul>
                   </PopoverContent>
                 </Popover>}
@@ -898,9 +988,11 @@ const ChatsContent: React.FC = () => {
 
               {/* Chat Article Start */}
               <article className="overflow-y-auto h-full flex flex-col px-[14px] pt-[20px] overflow-x-hidden min-h-20"
-                style={{background: group?.msg_bg_color ?? MSG_BG_COLOR}}
+                style={{background: groupConfig.colors.msgBg ?? MSG_BG_COLOR}}
               >
-                <p className="text-center text-sm"><button onClick={() => setLastChatDate(lastChatDate + 1)}>Read More</button></p>
+                <div className="text-center text-sm"><button onClick={() => setLastChatDate(lastChatDate + 1)}
+                  style={{color: groupConfig.colors.msgText ?? MSG_COLOR}}  
+                >Read More</button></div>
                 <div className="flex flex-col gap-[6px] overflow-y-scroll" ref={scrollContainerRef} >
                   {msgList?.length ? msgList.map((message, idx) => {
                     if (message.group_id === group?.id) {
@@ -916,7 +1008,7 @@ const ChatsContent: React.FC = () => {
                           sender_banned={message.sender_banned}
                           sender_unban_request={message.sender_unban_request}
                           time={chatDate(`${message.Send_Time}`)}
-                          ownMessage={message.Sender_Id === getCurrentUserId()}
+                          ownMessage={message.Sender_Id === currentUserId}
                           isCreater={currentUserId == group?.creater_id}
                           read_time={message.Read_Time}
                           parentMsg={msgList.find(msg => msg.Id === message.parent_id)}
@@ -929,11 +1021,11 @@ const ChatsContent: React.FC = () => {
                           onReplyMsgPartClicked={(msgId) => {
                             scrollToRepliedMsg(msgId);
                           }}
-                          show_avatar={group.show_user_img ?? SHOW_USER_IMG}
-                          font_size={group.custom_font_size ? group.font_size ?? FONT_SIZE : FONT_SIZE}
-                          message_color={group.msg_txt_color ?? MSG_COLOR}
-                          date_color={group.msg_date_color ?? MSG_DATE_COLOR}
-                          reply_message_color={group.reply_msg_color ?? REPLY_MGS_COLOR}
+                          show_avatar={groupConfig.settings.userImages ?? SHOW_USER_IMG}
+                          font_size={groupConfig.settings.customFontSize ? groupConfig.settings.fontSize ?? FONT_SIZE : FONT_SIZE}
+                          message_color={groupConfig.colors.msgText ?? MSG_COLOR}
+                          date_color={groupConfig.colors.dateText ?? MSG_DATE_COLOR}
+                          reply_message_color={groupConfig.colors.replyText ?? REPLY_MGS_COLOR}
                         />
                         </div>
                         
@@ -944,17 +1036,17 @@ const ChatsContent: React.FC = () => {
               </article>
               {/* Chat Article End */}
               <nav className={`relative max-[320px]:px-[5px] gap-[10px] flex flex-col border-t ${isMobile ? "p-[8px]" : "px-[12px] py-[6px]"}`}
-                style={{background: group?.bg_color ?? BG_COLOR, 
-                  borderBottomLeftRadius: group?.round_corners ? group.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
-                  borderBottomRightRadius: group?.round_corners ? group.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
-                  color: group?.title_color ?? TITLE_COLOR
+                style={{background: groupConfig.colors.background ?? BG_COLOR, 
+                  borderBottomLeftRadius: groupConfig.settings.roundCorners ? groupConfig.settings.cornerRadius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                  borderBottomRightRadius: groupConfig.settings.roundCorners ? groupConfig.settings.cornerRadius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                  color: groupConfig.colors.title ?? TITLE_COLOR
                 }}
               >
                 {/* start upload preview for image or file */}
                 {attachment?.type && <div className="upload-preview relative">
                   {attachment.type === 'image' && <Image className="h-[100px] w-auto" src={`${SERVER_URL}/uploads/chats/images/${attachment.url}`} alt="" width={100} height={100} />}
                   {attachment.type === 'file' && (<div>File : ${attachment.url}</div>)}
-                  <span onClick={handleRemoveAttachment} className="absolute top-0 right-0 text-xl cursor-pointer inline-block w-2 h-2">&times;</span>
+                  <div onClick={handleRemoveAttachment} className="absolute top-0 right-0 text-xl cursor-pointer inline-block w-2 h-2">&times;</div>
                 </div>}
                 {/* end upload preview for image or file */}
 
@@ -978,10 +1070,10 @@ const ChatsContent: React.FC = () => {
                 <div className="flex max-sm:flex-col-reverse justify-between gap-[10px] items-center">
                   
                   <div className="flex gap-[10px] min-w-[126px] relative cursor-pointer max-[810px]:w-full">
-                    <span onClick={() => imageUploadRef.current?.click()} className="w-[24px] h-[24px]"><FontAwesomeIcon icon={faImages} className="text-[24px]" /></span>
+                    <div onClick={() => imageUploadRef.current?.click()} className="w-[24px] h-[24px]"><FontAwesomeIcon icon={faImages} className="text-[24px]" /></div>
                     {/* <Image onClick={() => imageUploadRef.current?.click()} className="w-[24px] h-[24px]" src={`/assets/light/chats/images.svg`} alt="" width={100} height={100} /> */}
                     <input ref={imageUploadRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" />
-                    <span onClick={() => fileUploadRef.current?.click()} className="w-[24px] h-[24px]"><FontAwesomeIcon icon={faPaperclip} className="text-[24px]" /></span>
+                    <div onClick={() => fileUploadRef.current?.click()} className="w-[24px] h-[24px]"><FontAwesomeIcon icon={faPaperclip} className="text-[24px]" /></div>
                     {/* <Image onClick={() => fileUploadRef.current?.click()} className="w-[24px] h-[24px]" src={`/assets/light/chats/paperclip.svg`} alt="" width={100} height={100} /> */}
                     <input ref={fileUploadRef} type="file" onChange={handleFileUpload} className="hidden" />
                     {showEmoji &&
@@ -1004,11 +1096,11 @@ const ChatsContent: React.FC = () => {
                         }}
                       />
                     </div>}
-                    <span onClick={() => setShowEmoji(!showEmoji)} className="w-[24px] h-[24px]"><FontAwesomeIcon icon={faFaceSmile} className="text-[24px]" /></span>
+                    <div onClick={() => setShowEmoji(!showEmoji)} className="w-[24px] h-[24px]"><FontAwesomeIcon icon={faFaceSmile} className="text-[24px]" /></div>
                     {/* <Image onClick={() => setShowEmoji(!showEmoji)} className={`w-[24px] h-[24px] ${showEmoji && "bg-gray-200"}`} src={`/assets/light/chats/smile.svg`} alt="" width={100} height={100} /> */}
                     <Popover placement="bottom-start" showArrow >
                       <PopoverTrigger>
-                        <span className="w-[24px] h-[24px]" ref={soundMenuPopoverRef}><FontAwesomeIcon icon={faVolumeUp} className="text-[24px]" /></span>
+                        <div className="w-[24px] h-[24px]" ref={soundMenuPopoverRef}><FontAwesomeIcon icon={faVolumeUp} className="text-[24px]" /></div>
                         {/* <Image 
                           className={`w-[24px] h-[24px] bg-gray-200`} 
                           src={mySoundOptionId == 0 || mySoundOptionId == null || mySoundOptionId == undefined ? `/assets/light/chats/speaker_off.svg` : `/assets/light/chats/speaker_on.svg`} 
@@ -1063,7 +1155,7 @@ const ChatsContent: React.FC = () => {
                     
                   </div>
                   <div className={`flex w-full items-center justify-between p-[6px] ${isMobile ? "pl-12px" : "pl-[16px]"} rounded-full border`}
-                    style={{background: group?.input_bg_color ?? INPUT_BG_COLOR}}
+                    style={{background: groupConfig.colors.inputBg ?? INPUT_BG_COLOR}}
                   >
                     <input 
                       type="text" 
@@ -1073,10 +1165,10 @@ const ChatsContent: React.FC = () => {
                       onChange={(e) => setInputMsg(e.target.value)} 
                       className="w-full outline-none text-[14px] leading-[24px]" 
                       placeholder="Write a message" 
-                       style={{background: group?.input_bg_color ?? INPUT_BG_COLOR, color: group?.msg_txt_color ?? MSG_COLOR}}
+                       style={{background: groupConfig.colors.inputBg ?? INPUT_BG_COLOR, color: groupConfig.colors.msgText ?? MSG_COLOR}}
                       />
                     <button onClick={() => sendGroupMsgHandler("msg", "")} className="h-[30px] active:translate-y-[2px] py-[3px] max-[320px]:px-[12px] px-[26px] rounded-full text-[14px] max-[320px]:text-[10px] text-white bg-gradient-to-r from-[#BD00FF] to-[#3A4EFF]">
-                      {isMobile ? <span className="hidden max-[810px]:flex"><FontAwesomeIcon icon={faPaperPlane} className="text-[16px]" /></span> : "Send"}
+                      {isMobile ? <div className="hidden max-[810px]:flex"><FontAwesomeIcon icon={faPaperPlane} className="text-[16px]" /></div> : "Send"}
                     </button>
                   </div>
                 </div>
@@ -1087,10 +1179,10 @@ const ChatsContent: React.FC = () => {
                   <div 
                     className="h-full w-full bg-white flex justify-center items-center cursor-pointer"
                     style={{
-                      background: group?.bg_color ?? BG_COLOR,
-                      borderBottomLeftRadius: group?.round_corners ? group.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
-                      borderBottomRightRadius: group?.round_corners ? group.corner_radius ?? CORNOR_RADIUS : CORNOR_RADIUS,
-                      color: group?.title_color ?? TITLE_COLOR
+                      background: groupConfig.colors.background ?? BG_COLOR,
+                      borderBottomLeftRadius: groupConfig.settings.roundCorners ? groupConfig.settings.cornerRadius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                      borderBottomRightRadius: groupConfig.settings.roundCorners ? groupConfig.settings.cornerRadius ?? CORNOR_RADIUS : CORNOR_RADIUS,
+                      color: groupConfig.colors.title ?? TITLE_COLOR
                     }}
                   >
                         Sign in

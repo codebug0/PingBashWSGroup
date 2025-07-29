@@ -33,7 +33,7 @@ export interface ChatOption {
 export interface ChatGroup {
   id: number;
   name: string;
-  size_mode: string;
+  size_mode: 'fixed' | 'responsive';
   frame_width: number;
   frame_height: number;
   creater_id: number;
