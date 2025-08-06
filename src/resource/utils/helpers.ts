@@ -58,8 +58,28 @@ export const now = (format: string, date?: Date, UTC: boolean = false): string =
     .trim();
 };
 
+export const getCensoredWordArray = (censoredStr: string | null) => {
+  return censoredStr?.split(",").map(item => item.trim());
+}
+
+export const getCensoredMessage = (message: string, unallowedWords: string[]) => {
+  // Create a regex pattern to match any of the unallowed words (case-insensitive, word-boundary-safe)
+  const pattern = new RegExp(`\\b(${unallowedWords.join('|')})\\b`, 'gi');
+
+  // Replace matched word with asterisks of same length
+  return message.replace(pattern, (match) => '*'.repeat(match.length));
+}
+
+export const containsURL = (text: string) => {
+  const regex = /https?:\/\/[^\s]+/i;
+  return regex.test(text);
+}
+
 export const chatDate = (inputDate: string | "") => {
 
+  if (inputDate == "" || inputDate == undefined || inputDate == null || inputDate == "undefined") {
+    return "";
+  }
   // Convert input date to a Date object
   const targetDate: Date = new Date(inputDate);
 
@@ -80,5 +100,18 @@ export const chatDate = (inputDate: string | "") => {
   const minutesDifference: number = Math.floor((differenceInMillis % millisecondsInHour) / millisecondsInMinute);
   const secondsDifference: number = Math.floor((differenceInMillis % millisecondsInMinute) / millisecondsInSecond);
 
-  return daysDifference > 0 ? daysDifference + "d ago" : hoursDifference > 0 ? hoursDifference + "h ago" : minutesDifference > 0 ? minutesDifference + "m ago" : secondsDifference > 0 ? secondsDifference + "s ago" : "Just now"
+  return daysDifference > 0 
+          ? daysDifference + "d ago" 
+          : hoursDifference > 0 
+            ? hoursDifference + "h ago" 
+            : minutesDifference > 0 
+              ? minutesDifference + "m ago" 
+              : secondsDifference > 0 
+                ? secondsDifference + "s ago" 
+                : "Just now"
+}
+
+export function isValidGroupName(name: string): boolean {
+  const groupNameRegex = /^[a-z0-9]+$/;
+  return groupNameRegex.test(name);
 }

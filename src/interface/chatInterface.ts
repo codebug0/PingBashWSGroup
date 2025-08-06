@@ -19,9 +19,21 @@ export interface ChatUser {
   id: number;
   name: string;
   email: string;
+  avatar: string;
+  gender: string;
+  birthday: string;
+  country: string;
   Socket: boolean | false;
   banned: number | null;
   unban_request: number | null;
+  is_member: number | null;
+  role_id: number | null;
+  chat_limit: boolean | null;
+  manage_mods: boolean | null;
+  manage_chat: boolean | null;
+  manage_censored: boolean | null;
+  ban_user: boolean | null;
+  filter_mode: number;
 }
 
 export interface ChatOption {
@@ -40,7 +52,7 @@ export interface ChatGroup {
   creater_name: string;
   members: ChatUser[];
   banned: number | null;
-  unban_request: number | null;
+  unban_request: number | null;  
   bg_color:  string | null,
   title_color:  string | null,
   msg_bg_color:  string | null,
@@ -52,7 +64,12 @@ export interface ChatGroup {
   custom_font_size: boolean | null,
   font_size: number | null,
   round_corners: boolean | null,
-  corner_radius: number | null
+  corner_radius: number | null,
+  censored_words: string | null
+  post_level: number | null,
+  url_level: number | null,
+  slow_mode: boolean | null,
+  slow_time: number | null
 }
 
 export interface MessageUnit {

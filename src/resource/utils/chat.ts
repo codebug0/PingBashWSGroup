@@ -46,11 +46,12 @@ export const sendMsg = (to: number | null | undefined, msg: string, token: strin
 export const sendGroupMsg = (
   groupId: number | null | undefined, 
   msg: string, 
-  token: string | null,
+  token: string | null, 
+  receiverId: number | null,
   parent_id: number | null | undefined
 ) => {
   let message = makeTextSafe(msg);
-  socket.emit(ChatConst.SEND_GROUP_MSG, { groupId, msg: message, token, parent_id })
+  socket.emit(ChatConst.SEND_GROUP_MSG, { groupId, msg: message, token, receiverId, parent_id })
 }
 
 /**
@@ -67,8 +68,6 @@ export const getGroupMessages = (token: string | null, groupId: number | null | 
 }
 
 export const listenGroupMessages = (token: string | null, groupId: string) => {
-  console.log("==== groupName ====", groupId);
-  console.log("===== socket =====", token);
   if (token && groupId)  
     socket.emit(ChatConst.LISTEN_GROUP_MSG, { groupId })
 }
@@ -113,6 +112,13 @@ export const unbanGroupUser = (token: string | null, groupId: number | null | un
   }
 }
 
+export const unbanGroupUsers = (token: string | null, groupId: number | null | undefined, userIds: number[]) => {
+  if (token && groupId && userIds) {
+    console.log(userIds);
+    socket.emit(ChatConst.UNBAN_GROUP_USERS, { token, groupId, userIds })
+  }
+}
+
 export const readGroupMsg = (token: string | null, groupId: number | null) => {
   if (token && groupId) {
     socket.emit(ChatConst.READ_GROUP_MSG, { token, groupId })
@@ -123,4 +129,70 @@ export const updateGroupFavInfo = (token: string | null, groupId: number | null 
   console.log(" ===== aaaa ===", groupId, ",", isMember, token);
   if (token && groupId)
     socket.emit(ChatConst.UPDATE_FAV_GROUPS, { token, groupId, isMember })
+}
+
+export const updateGroupChatLimitations = (
+  token: string | null, 
+  groupId: number | null | undefined, 
+  post_level: number | null,
+  url_level: number | null,
+  slow_mode: boolean | null,
+  slow_time: number | null
+) => {
+  if (token && groupId) {
+    socket.emit(ChatConst.UPDATE_GROUP_POST_LEVEL, 
+      {token, groupId, post_level, url_level, slow_mode, slow_time})
+  }
+}
+
+export const updateGroupModPermissions = (token: string | null, groupId: number | null | undefined, modId: number | null, settings: any) => {
+  if (token && groupId && modId) {
+    socket.emit(ChatConst.UPDATE_MOD_PERMISSIONS, 
+      { 
+        token, 
+        groupId, 
+        modId,
+        chat_limit: settings.chatLimit,
+        manage_mods: settings.manageMods,
+        manage_chat: settings.manageChat,
+        manage_censored: settings.censoredContent,
+        ban_user: settings.banUsers
+      })
+  }
+}
+
+export const updateCensoredWords = (token: string | null, groupId: number | null | undefined, contents: string | null) => {
+  if (token && groupId) {
+    socket.emit(ChatConst.UPDATE_CENSORED_CONTENTS, { token, groupId, contents })
+  }
+}
+
+export const updateGroupModerators = (token: string | null, groupId: number | null | undefined, modIds: number[] | null) => {
+  if (token && groupId) {
+    socket.emit(ChatConst.UPDATE_GROUP_MODERATORS, { token, groupId, modIds })
+  }
+}
+
+export const clearGroupChat = (token: string | null, groupId: number | null | undefined) => {
+  if (token && groupId) {
+    socket.emit(ChatConst.CLEAR_GROUP_CHAT, { token, groupId })
+  }
+}
+
+export const pinChatmessage = (token: string | null, groupId: number | null | undefined, msgId: number | null) => {
+  if (token && msgId) {
+    socket.emit(ChatConst.PIN_MESSAGE, { token, groupId, msgId })
+  }
+}
+
+export const unpinChatmessage = (token: string | null, groupId: number | null | undefined, msgId: number | null) => {
+  if (token && msgId) {
+    socket.emit(ChatConst.UNPIN_MESSAGE, { token, groupId, msgId })
+  }
+}
+
+export const getPinnedMessages = (token: string | null, groupId: number | null) => {
+  if (token && groupId) {
+    socket.emit(ChatConst.GET_PINNED_MESSAGES, { token, groupId })
+  }
 }
