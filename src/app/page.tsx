@@ -225,7 +225,7 @@ const ChatsContent: React.FC = () => {
   });
 
   const [isDarkMode, setDarkMode] = useState(false);
-
+  const [hideChat, setHideChat] = useState(false)
 // Parameters for the Admin Tools
   const adminManagePopoverRef = useRef<HTMLImageElement>(null);
   const [openChatLimitationPopup, setOpenChatLimitationPopup] = useState(false);
@@ -629,10 +629,11 @@ const ChatsContent: React.FC = () => {
     setGroupMenuOptions([
       {id: 1, name: "Copy Group Link"},
       {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
+      {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"}
       // {id: 3, name: "Hide Chat"},
       // {id: 4, name: "Subscribe to Notifications"}
     ])
-  }, [favGroups, group]);
+  }, [favGroups, group, hideChat]);
 
   // To get the initial data for the users and the categegories for the dashboard
   const registerAnon = useCallback(async (token: string, anonId: number, groupName: string) => {
@@ -776,6 +777,7 @@ const ChatsContent: React.FC = () => {
       setInputMsg("");
       return;
     }
+    if (hideChat) return
     if (!canSend) {
       toast.error("You can't send message now. You can send " + cooldown + " seconds later.");
       return;
@@ -977,6 +979,8 @@ const ChatsContent: React.FC = () => {
       let groupIdFav = favGroups?.find(grp => grp.id == group?.id) != null;
       let updateIsMember = groupIdFav ? 0 : 1;
       updateGroupFavInfo(localStorage.getItem(TOKEN_KEY), group?.id, updateIsMember);
+    } else if (menuId == 3) {
+      setHideChat(!hideChat)
     }
   }
 
@@ -1287,7 +1291,7 @@ const ChatsContent: React.FC = () => {
               {/* Chat Right Side Header End */}
 
               {/* Pinned Message carousel Start */}
-              {pinnedMessages?.length > 0 && 
+              {!hideChat && pinnedMessages?.length > 0 && 
               <PinnedMessagesWidget
                 messages={pinnedMessages}
                 bgColor={groupConfig.colors.background}
@@ -1304,12 +1308,12 @@ const ChatsContent: React.FC = () => {
               {/* Pinned Message Carousel End */}
 
               {/* Chat Article Start */}
-              <article className="overflow-y-auto h-full flex flex-col px-[14px] pt-[20px] overflow-x-hidden min-h-20"
+              <article className={`overflow-y-auto h-full ${hideChat ? "hidden" : "flex"} flex-col px-[14px] pt-[20px] overflow-x-hidden min-h-20`}
                 style={{background: groupConfig.colors.msgBg ?? MSG_BG_COLOR}}
               >
-                <div className="text-center text-sm"><button onClick={() => setLastChatDate(lastChatDate + 1)}
+                {/* <div className="text-center text-sm"><button onClick={() => setLastChatDate(lastChatDate + 1)}
                   style={{color: groupConfig.colors.msgText ?? MSG_COLOR}}  
-                >Read More</button></div>
+                >Read More</button></div> */}
                 <div className="flex flex-col gap-[6px] overflow-y-scroll" ref={scrollContainerRef} >
                   {msgList?.length ? msgList.map((message, idx) => {
                     if (message.group_id === group?.id) {
@@ -1345,6 +1349,11 @@ const ChatsContent: React.FC = () => {
                             onReplyMessage={(msgId) => {
                               if (isBannedUser) return
                               if (!canPost) return
+                              if (hideChat) return
+                              if (!canSend) {
+                                toast.error("You can't send message now. You can send " + cooldown + " seconds later.");
+                                return;
+                              }
                               setReplyMsg(filteredMsgList.find(msg => msg.Id === msgId));
                               setShowMsgReplyView(true);
                             }}
@@ -1405,6 +1414,7 @@ const ChatsContent: React.FC = () => {
                         onClick={() => {
                           if (isBannedUser) return
                           if (!canPost) return
+                          if (hideChat) return
                           if (!canSend) {
                             toast.error("You can't send message now. You can send " + cooldown + " seconds later.");
                             return;
@@ -1418,6 +1428,7 @@ const ChatsContent: React.FC = () => {
                         onClick={() => {
                           if (isBannedUser) return
                           if (!canPost) return
+                          if (hideChat) return
                           if (!canSend) {
                             toast.error("You can't send message now. You can send " + cooldown + " seconds later.");
                             return;
@@ -1451,6 +1462,7 @@ const ChatsContent: React.FC = () => {
                         onClick={() => {
                           if (isBannedUser) return
                           if (!canPost) return
+                          if (hideChat) return
                           if (!canSend) {
                             toast.error("You can't send message now. You can send " + cooldown + " seconds later.");
                             return;
