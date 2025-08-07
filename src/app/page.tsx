@@ -57,7 +57,8 @@ import {
   faPaperclip,
   faVolumeUp,
   faFilter,
-  faSliders
+  faSliders,
+  faL
 } from "@fortawesome/free-solid-svg-icons";
 import {
   faImages,
@@ -96,13 +97,6 @@ import PinnedMessagesWidget from "@/components/chats/PinnedMessagesWidget";
 interface Attachment {
   type: string | null;
   url: string | null;
-}
-
-interface Group {
-  id: number;
-  name: string;
-  creater_id: number;
-  members: string[];
 }
 
 interface ChatWidgetConfig {
@@ -177,6 +171,7 @@ const ChatsContent: React.FC = () => {
   // const [currentGroupId, setCurrentGroupId] = useState<number | null>(0);
   // const [groupCreaterId, setGroupCreaterId] = useState<number | null>(0);
   const [groupMenuOptions, setGroupMenuOptions] = useState<any[]>([])
+  const [showSigninView, setShowSigninView] = useState(true)
   
   const soundMenuPopoverRef = useRef<HTMLImageElement>(null);
   const filterPopoverRef = useRef<HTMLImageElement>(null);
@@ -411,6 +406,7 @@ const ChatsContent: React.FC = () => {
   }, [group, isDarkMode]);
 
   useEffect(() => {
+    dispatch(setIsLoading(false)); 
     const token = localStorage.getItem(TOKEN_KEY);
     if (token && group) {
       setPinnedMsgIds([]);
@@ -418,10 +414,9 @@ const ChatsContent: React.FC = () => {
     }
     setShowMsgReplyView(false);
     setFilterMode(0)
-  }, [group]);
+  }, [group, currentUserId]);
 
   useEffect(() => {
-    console.log("== Group ===", group)
     dispatch(setIsLoading(false)); 
     setGroupBannedUsers(group?.members?.filter(mem => mem.banned == 1) ?? [])
     if (group) {
@@ -482,7 +477,7 @@ const ChatsContent: React.FC = () => {
       }      
     }
 
-  }, [group])
+  }, [group, currentUserId])
 
   useEffect(() => {
     const pinnedMsgs = filteredMsgList.filter(msg => pinnedMsgIds.includes(msg.Id ?? -1))
@@ -490,21 +485,24 @@ const ChatsContent: React.FC = () => {
   }, [filteredMsgList, pinnedMsgIds]);
 
   useEffect(() => {
-    const myMemInfo = group?.members?.find(mem => mem.id == getCurrentUserId())
+    const myMemInfo = group?.members?.find(mem => mem.id == currentUserId)
     setFilteredPrevMsgList(filteredMsgList)
     let newMsgs = []
-    if (myMemInfo?.role_id == 1 || myMemInfo?.role_id == 2) {
-      newMsgs = msgList.filter(msg => msg.Receiver_Id == null || msg.Receiver_Id == 1 || msg.Receiver_Id == getCurrentUserId() || msg.Sender_Id == getCurrentUserId())
-      
+    if (currentUserId == null || myMemInfo == null) {
+      newMsgs = msgList.filter(msg => msg.Receiver_Id === null)      
     } else {
-      newMsgs = msgList.filter(msg => msg.Receiver_Id == null || msg.Receiver_Id == getCurrentUserId() || msg.Sender_Id == getCurrentUserId())
+      if (myMemInfo?.role_id == 1 || myMemInfo?.role_id == 2) {
+        newMsgs = msgList.filter(msg => msg.Receiver_Id == null || msg.Receiver_Id == 1 || msg.Receiver_Id == currentUserId || msg.Sender_Id == currentUserId)        
+      } else {
+        newMsgs = msgList.filter(msg => msg.Receiver_Id == null || msg.Receiver_Id == currentUserId || msg.Sender_Id == currentUserId)
+      }
     }
     setFilteredMsgList(newMsgs)
 
     const prevLength = filteredMsgList.length;
     const newLength = newMsgs.length;
     if (prevLength + 1 == newLength) {
-      if (newMsgs[newLength - 1].Sender_Id != getCurrentUserId()) {        
+      if (newMsgs[newLength - 1].Sender_Id != currentUserId) {        
         if (mySoundOptionId == 1) {
           console.log(" === Played Bell ==== ")
           playBell();
@@ -520,7 +518,7 @@ const ChatsContent: React.FC = () => {
         }          
       }
     }
-  }, [msgList])
+  }, [msgList, currentUserId])
 
   useEffect(() => {
     let isMounted = true;
@@ -528,102 +526,90 @@ const ChatsContent: React.FC = () => {
     const handleGetFavGroups = (data: ChatGroup[]) => {
       if (!isMounted) return;
       setFavGroups(data);
-    };
+    };    
 
-    const handleSendGroupMsg = (data: MessageUnit[]) => {
-      if (!isMounted) return;
-      const groupId = data?.length && data[data.length - 1].group_id; 
-      if (groupId === group?.id) {
-        const newList = mergeArrays(msgList, data);
-        dispatch(setMessageList([...newList]));        
-      }
-    }
-
-    const handleDeleteGroupMsg = (data: number) => {
-      if (!isMounted) return;
-      const updateMsgList = msgList.filter(msg => msg.Id != data);
-      dispatch(setMessageList([...updateMsgList]))
-    }
-
-    const handleBanGroupUser = (userId: number) => {
-      if (!isMounted) return;
-      const updateMsgList = msgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 1} : msg);
-      dispatch(setMessageList(updateMsgList));
-    }
-
-    const handleUnbanGroupUser = (userId: number) => {
-      if (!isMounted) return;
-      const updateMsgList = msgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 0} : msg);
-      dispatch(setMessageList(updateMsgList));
-    }
-
-    const handleUnbanGroupUsers = (userIds: number[] | null) => {
-      if (!isMounted) return;
-      const updateMsgList = msgList.map(msg => userIds?.includes(msg.Sender_Id ?? -1) ? {...msg, sender_banned: 0} : msg);
-      dispatch(setMessageList(updateMsgList));
-    }
-
-    const handleExpired = () => {
-      if (!isMounted) return;
-      localStorage.clear()
-      dispatch(setIsLoading(false));
-      setShowSigninPopup(true);
-    }
-
-    const handleClearGroupChat = (groupId: number) => {
-      if (!isMounted) return;
-      if (groupId == group?.id) {
-        dispatch(setMessageList([]));
-      }
-      dispatch(setIsLoading(false));
-    }  
+      
 
     const handleGetPinnedMesssages = (msgIds: number[]) => {
       if (!isMounted) return;
       setPinnedMsgIds(msgIds);
-    }
-
-    const handleGroupUpdated = (updatedGroup: ChatGroup) => {
-      dispatch(setIsLoading(false));
-      if (group?.id == updatedGroup.id) {
-        setGroup(updatedGroup)
-      }
-      if (favGroups.find(grp => grp.id == updatedGroup.id)) {
-        setFavGroups(favGroups.map(grp => grp.id == updatedGroup.id ? updatedGroup : grp))
-      }
-    }
+    }    
 
     // Register handlers
     socket.on(ChatConst.GET_FAV_GROUPS, handleGetFavGroups);
-    // Receive the message afer sending the message.
-    socket.on(ChatConst.SEND_GROUP_MSG, handleSendGroupMsg);
 
     // Receive updated message afer delete group message.
-    socket.on(ChatConst.DELETE_GROUP_MSG, handleDeleteGroupMsg);
-
-    socket.on(ChatConst.BAN_GROUP_USER, handleBanGroupUser);
-    socket.on(ChatConst.UNBAN_GROUP_USER, handleUnbanGroupUser);
-    socket.on(ChatConst.UNBAN_GROUP_USERS, handleUnbanGroupUsers);
-    socket.on(ChatConst.EXPIRED, handleExpired)
-    socket.on(ChatConst.CLEAR_GROUP_CHAT, handleClearGroupChat);
-    socket.on(ChatConst.GET_PINNED_MESSAGES, handleGetPinnedMesssages)
-    socket.on(ChatConst.GROUP_UPDATED, handleGroupUpdated);
+    socket.on(ChatConst.GET_PINNED_MESSAGES, handleGetPinnedMesssages)   
     
     // Cleanup
     return () => {
       isMounted = false;
       socket.off(ChatConst.GET_FAV_GROUPS, handleGetFavGroups);
-      socket.off(ChatConst.SEND_GROUP_MSG, handleSendGroupMsg);
-      socket.off(ChatConst.DELETE_GROUP_MSG, handleDeleteGroupMsg);
-      socket.off(ChatConst.BAN_GROUP_USER, handleBanGroupUser);
-      socket.off(ChatConst.UNBAN_GROUP_USER, handleUnbanGroupUser);
-      socket.off(ChatConst.UNBAN_GROUP_USERS, handleUnbanGroupUsers);
-      socket.off(ChatConst.EXPIRED, handleExpired)
-      socket.off(ChatConst.CLEAR_GROUP_CHAT, handleClearGroupChat);
       socket.off(ChatConst.GET_PINNED_MESSAGES, handleGetPinnedMesssages)
-      socket.off(ChatConst.GROUP_UPDATED, handleGroupUpdated);
     };
-  }, [currentUserId, group]);
+  }, []);
+
+  const handleBanGroupUser = (userId: number) => {
+    const updateMsgList = msgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 1} : msg);
+    dispatch(setMessageList(updateMsgList));
+  }
+
+  const handleUnbanGroupUser = (userId: number) => {
+    const updateMsgList = msgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 0} : msg);
+    dispatch(setMessageList(updateMsgList));
+  }
+
+  const handleUnbanGroupUsers = (userIds: number[] | null) => {
+    const updateMsgList = msgList.map(msg => userIds?.includes(msg.Sender_Id ?? -1) ? {...msg, sender_banned: 0} : msg);
+    dispatch(setMessageList(updateMsgList));
+  }
+
+  const handleGroupUpdated = (updatedGroup: ChatGroup) => {
+    dispatch(setIsLoading(false));
+    if (group?.id == updatedGroup.id) {
+      setGroup(updatedGroup)
+    }
+    if (favGroups.find(grp => grp.id == updatedGroup.id)) {
+      setFavGroups(favGroups.map(grp => grp.id == updatedGroup.id ? updatedGroup : grp))
+    }
+  }
+
+  const handleDeleteGroupMsg = (data: number) => {
+    const updateMsgList = msgList.filter(msg => msg.Id != data);
+    dispatch(setMessageList([...updateMsgList]))
+  }
+
+  const handleSendGroupMsg = (data: MessageUnit[]) => {
+    const groupId = data?.length && data[data.length - 1].group_id; 
+    if (groupId === group?.id) {
+      const newList = mergeArrays(msgList, data);
+      dispatch(setMessageList([...newList]));        
+    }
+  }
+
+  const handleClearGroupChat = (groupId: number) => {
+    if (groupId == group?.id) {
+      dispatch(setMessageList([]));
+    }
+    dispatch(setIsLoading(false));
+  }  
+
+  const handleExpired = () => {
+    localStorage.clear()
+    dispatch(setIsLoading(false));
+    setShowSigninView(true)
+    setShowSigninPopup(true);
+  }  
+
+  socket.on(ChatConst.BAN_GROUP_USER, handleBanGroupUser);
+  socket.on(ChatConst.UNBAN_GROUP_USER, handleUnbanGroupUser);
+  socket.on(ChatConst.UNBAN_GROUP_USERS, handleUnbanGroupUsers);
+  // Receive the message afer sending the message.
+  socket.on(ChatConst.SEND_GROUP_MSG, handleSendGroupMsg);
+  socket.on(ChatConst.DELETE_GROUP_MSG, handleDeleteGroupMsg);
+  socket.on(ChatConst.GROUP_UPDATED, handleGroupUpdated);
+  socket.on(ChatConst.CLEAR_GROUP_CHAT, handleClearGroupChat);
+  socket.on(ChatConst.EXPIRED, handleExpired)    
 
   useEffect(() => {
     setGroupMenuOptions([
@@ -634,6 +620,14 @@ const ChatsContent: React.FC = () => {
       // {id: 4, name: "Subscribe to Notifications"}
     ])
   }, [favGroups, group, hideChat]);
+
+  useEffect(() => {
+    if (currentUserId && currentUserId > 0) {
+      setShowSigninView(false)
+    } else {
+      setShowSigninView(true)
+    }
+  }, [currentUserId])
 
   // To get the initial data for the users and the categegories for the dashboard
   const registerAnon = useCallback(async (token: string, anonId: number, groupName: string) => {
@@ -1038,7 +1032,7 @@ const ChatsContent: React.FC = () => {
   };
 
   const scrollToRepliedMsg = (msgId: number | null | undefined) => {
-    const itemIndex = msgList.findIndex(msg => msg.Id === msgId);
+    const itemIndex = filteredMsgList.findIndex(msg => msg.Id === msgId);
     console.log(itemIndex);
     const container = scrollContainerRef.current;
     const item = msgItemRefs.current[itemIndex];
@@ -1315,16 +1309,13 @@ const ChatsContent: React.FC = () => {
                   style={{color: groupConfig.colors.msgText ?? MSG_COLOR}}  
                 >Read More</button></div> */}
                 <div className="flex flex-col gap-[6px] overflow-y-scroll" ref={scrollContainerRef} >
-                  {msgList?.length ? msgList.map((message, idx) => {
+                  {filteredMsgList?.length ? filteredMsgList.map((message, idx) => {
                     if (message.group_id === group?.id) {
                       return (
                         <div key={idx} ref={setMsgItemRef(idx)}>
                           <Message
-                            key={`message-${idx}`}                          
-                            messageId={message.Id}
+                            key={`message-${idx}`}
                             avatar={message?.sender_avatar ? `${SERVER_URL}/uploads/users/${message.sender_avatar}` : null}
-                            senderId={message.Sender_Id}
-                            sender={message.sender_name}
                             content={`${message.Content}`}
                             sender_banned={message.sender_banned}
                             sender_unban_request={message.sender_unban_request}
@@ -1343,6 +1334,10 @@ const ChatsContent: React.FC = () => {
                             message_color={groupConfig.colors.msgText ?? MSG_COLOR}
                             date_color={groupConfig.colors.dateText ?? MSG_DATE_COLOR}
                             reply_message_color={groupConfig.colors.replyText ?? REPLY_MGS_COLOR}
+
+                            message={message}
+                            group={group}
+                            userId={getCurrentUserId()}
 
                             onDelete={messageDeleteButtonClicked}
                             onBanUser={userBanButtonClicked}
@@ -1663,7 +1658,11 @@ const ChatsContent: React.FC = () => {
         </div>
       </div>
       {/* Chats Area End */}
-      <SigninPopup isOpen={showSigninPopup} onClose={() => setShowSigninPopup(false)} onSignin={handleSignin}/>
+      <SigninPopup 
+        isOpen={showSigninPopup} 
+        onClose={() => setShowSigninPopup(false)} 
+        onSignin={handleSignin}
+      />
       <ConfirmPopup
         title={"Delete message?"}
         description={"Are you sure you want to delete this message?"}

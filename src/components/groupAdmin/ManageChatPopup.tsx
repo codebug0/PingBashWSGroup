@@ -85,11 +85,8 @@ const ManageChatPopup: React.FC<Props> = ({
               ) : (
                 localPinnedMessages.map((message, idx) => (
                   <Message
-                    key={`message-${idx}`}                          
-                    messageId={message.Id}
+                    key={`message-${idx}`}
                     avatar={message?.sender_avatar ? `${SERVER_URL}/uploads/users/${message.sender_avatar}` : null}
-                    senderId={message.Sender_Id}
-                    sender={message.sender_name}
                     content={`${message.Content}`}
                     sender_banned={message.sender_banned}
                     sender_unban_request={message.sender_unban_request}
@@ -108,6 +105,10 @@ const ManageChatPopup: React.FC<Props> = ({
                     message_color={MSG_COLOR}
                     date_color={MSG_DATE_COLOR}
                     reply_message_color={REPLY_MGS_COLOR}
+
+                    message={message}
+                    group={null}
+                    userId={null}
 
                     onDelete={() => {}}
                     onBanUser={() => {}}

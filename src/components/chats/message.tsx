@@ -10,14 +10,11 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import Lottie from "lottie-react"
 import { stickers } from './LottiesStickers';
-import { MessageUnit } from '@/interface/chatInterface';
+import { ChatGroup, MessageUnit } from '@/interface/chatInterface';
 
 interface MessageProps {
-  messageId?: number | null,
   avatar: string | null, 
   content: string, 
-  senderId: number | null,
-  sender: string | null, 
   sender_banned: number | null,
   sender_unban_request: number | null,
   time: string, 
@@ -37,6 +34,10 @@ interface MessageProps {
   isPinned: boolean,
   isTabbed: boolean,
   show_reply: boolean,
+
+  message: MessageUnit | null,
+  group: ChatGroup | null,
+  userId: number | null,
   onDelete: (msgId: number | null | undefined) => void;
   onBanUser: (userid: number | null) => void;
   onPinMessage: (msgId: number | null) => void;
@@ -46,11 +47,8 @@ interface MessageProps {
 }
 
 const Message: React.FC<MessageProps> = ({ 
-  messageId,
   avatar, 
   content, 
-  senderId,
-  sender, 
   sender_banned,
   sender_unban_request,
   time, 
@@ -67,6 +65,9 @@ const Message: React.FC<MessageProps> = ({
   isPinned,
   isTabbed,
   show_reply,
+  message,
+  group, 
+  userId,
   onDelete,
   onBanUser,
   onPinMessage,
@@ -76,11 +77,12 @@ const Message: React.FC<MessageProps> = ({
 }) => {
   const messageRef = useRef<HTMLDivElement | null>(null);
   const [highlight, setHighlight] = useState(false);
+  const [filterModeText, setFilterModeText] = useState<string | null>(null)
 
-  const onBanButtonClicked = () => onBanUser(senderId);
-  const onDeleteButtonClicked = () => onDelete(messageId);
-  const onPinButtonClicked = () => onPinMessage(messageId ?? null);
-  const onReplyButtonClicked = () => onReplyMessage(messageId);
+  const onBanButtonClicked = () => onBanUser(message?.Sender_Id ?? null);
+  const onDeleteButtonClicked = () => onDelete(message?.Id);
+  const onPinButtonClicked = () => onPinMessage(message?.Id ?? null);
+  const onReplyButtonClicked = () => onReplyMessage(message?.Id);
 
   const getSticker = (content: string) => {
     const stickerName = content.slice("sticker::".length);
@@ -142,11 +144,26 @@ const Message: React.FC<MessageProps> = ({
     }
   }, [highlight]);
 
+  useEffect(() => {
+    if (message && group && userId) {
+      if (message.Receiver_Id && message.Receiver_Id == 1) {
+        setFilterModeText("Mods")
+      } else if (message.Receiver_Id && message.Receiver_Id > 1) {
+        if (message.Receiver_Id == userId) {
+          setFilterModeText("1 on 1")
+        } else {
+          const receiverName = group.members?.find(mem => mem.id == message.Receiver_Id)?.name
+          setFilterModeText("1 on 1: " + receiverName)
+        }        
+      }
+    }
+  }, [message, group, userId])
+
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <div 
         ref={messageRef} 
-        className={`border-b-2 border-gray-200 px-[14px] pt-[8px] pb-[8px] chat-box transition-colors duration-[1200ms] ${highlight ? 'bg-blue-200' : 'bg-transparent'}`}
+        className={`border-b-2 border-gray-200 px-[14px] py-[4px] chat-box transition-colors duration-[1200ms] ${highlight ? 'bg-blue-200' : 'bg-transparent'}`}
       >
         <div className="flex justify-between items-start relative">
           <div className="flex items-start gap-2">
@@ -160,7 +177,7 @@ const Message: React.FC<MessageProps> = ({
 
             <div className="flex items-start gap-1 flex-nowrap">
               <div className={`relative ${content.includes("<img") ? "flex" : ""} text-[15px] mt-[16px]`} style={{ color: message_color, fontSize:font_size }}>
-                <span className="font-bold mr-[8px]" style={{ fontSize: font_size }}>{sender}:</span>
+                <span className="font-bold mr-[8px]" style={{ fontSize: font_size }}>{message?.sender_name}:</span>
                 {parentMsg && 
                   <div className="flex-row-center rounded-[8px] overflow-y-hidden cursor-pointer"
                     style={{ height: font_size * 3, background: reply_message_color + "22" }}
@@ -183,8 +200,8 @@ const Message: React.FC<MessageProps> = ({
               </div>
             </div>
           </div>
-
-          <div className="h-[16px] flex items-center whitespace-nowrap absolute top-0 right-0 gap-4 mr-[12px]">
+          {filterModeText && <div className={`absolute right-[0px] bottom-[-4px] px-[8px] py-[3px] ${filterModeText == "Mods" ? "bg-black" : "bg-gray-600"} text-white text-[12px]`}>{filterModeText}</div>}
+          <div className="h-[16px] flex items-center whitespace-nowrap absolute top-[4px] right-0 gap-4 mr-[12px]">
             {show_reply && <p className="text-[12px] cursor-pointer" style={{ color: date_color, fontSize: font_size * 0.9 }} onClick={onReplyButtonClicked}>Reply</p>}
             <p className="text-[12px]" style={{ color: date_color, fontSize: font_size * 0.9 }}>{time}</p>
             {isPinned && <button onClick={onPinButtonClicked}>
