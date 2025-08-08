@@ -684,24 +684,12 @@ const ChatsContent: React.FC = () => {
     return parseInt(groupID);
   };
 
-  const getGroupCreaterId = (): number => {
-    let createrId: string | null = "0";
-    if (typeof window !== "undefined") {
-      createrId = localStorage.getItem(GROUP_CREATER_ID);
-      if (createrId == null) {
-        createrId = "0";
-      }
-    }    
-    return parseInt(createrId);
-  }
-
   const startCooldown = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
 
     if (group?.slow_mode) {
-      console.log("=== Timer settted ====")
       setCanSend(false);
       setCooldown(group.slow_time ?? 0);
 
