@@ -1242,9 +1242,7 @@ const ChatsContent: React.FC = () => {
                   color: group?.title_color ?? TITLE_COLOR, zIndex: 1
                 }}
               >
-                <div className="flex gap-[16px] items-center">
-                  <div className="hidden max-[810px]:flex"><FontAwesomeIcon icon={userNavShow ? faArrowRight : faArrowLeft} onClick={() => setUserNavShow(!userNavShow)} /></div>
-                  
+                <div className="flex gap-[16px] items-center">  
                   <div>
                     <div className="flex justify-start max-[810px]:flex-col items-center gap-[5px] whitespace-nowrap truncate">
                       <div className="text-[20px] font-bold truncate w-[100%]">{group?.name}</div>
