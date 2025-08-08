@@ -168,10 +168,10 @@ const ChatsContent: React.FC = () => {
   const [showMsgReplyView, setShowMsgReplyView] = useState<boolean | null>(null);
   const playBell = useSound("/sounds/sound_bell.wav");
   const [currentUserId, setCurrentUserId] = useState<number>(0);
-  // const [currentGroupId, setCurrentGroupId] = useState<number | null>(0);
-  // const [groupCreaterId, setGroupCreaterId] = useState<number | null>(0);
   const [groupMenuOptions, setGroupMenuOptions] = useState<any[]>([])
   const [showSigninView, setShowSigninView] = useState(true)
+
+  const [anonToken, setAnonToken] = useState<string | null>(null)
   
   const soundMenuPopoverRef = useRef<HTMLImageElement>(null);
   const filterPopoverRef = useRef<HTMLImageElement>(null);
@@ -326,6 +326,7 @@ const ChatsContent: React.FC = () => {
       const groupName = getSubDomain();    
       const browserUUid = getBrowserUUID();
       const anontoken = "anonuser" + groupName + browserUUid;
+      setAnonToken(anontoken)
       return anontoken
     }
     
@@ -408,8 +409,11 @@ const ChatsContent: React.FC = () => {
 
   useEffect(() => {
     dispatch(setIsLoading(false)); 
-    const token = localStorage.getItem(TOKEN_KEY);
+    let token = localStorage.getItem(TOKEN_KEY);
+    if (!token) token = anonToken
+    console.log("== Token ===", token)
     if (token && group) {
+      console.log("== Token 1111 ===", token)
       setPinnedMsgIds([]);
       getPinnedMessages(token, group?.id)
     }
@@ -527,9 +531,7 @@ const ChatsContent: React.FC = () => {
     const handleGetFavGroups = (data: ChatGroup[]) => {
       if (!isMounted) return;
       setFavGroups(data);
-    };    
-
-      
+    }; 
 
     const handleGetPinnedMesssages = (msgIds: number[]) => {
       if (!isMounted) return;
