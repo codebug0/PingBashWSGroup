@@ -296,7 +296,7 @@ const ChatsContent: React.FC = () => {
     const token = localStorage.getItem(TOKEN_KEY);
     const groupId = getChatGroupID();
     const userId = getCurrentUserId();
-    // setCurrentGroupId(groupId);
+    // setCurrentGroupId(groupId); 
     setCurrentUserId(userId);
     // setGroupCreaterId(getGroupCreaterId());
 
@@ -550,7 +550,8 @@ const ChatsContent: React.FC = () => {
   }, []);
 
   const handleBanGroupUser = (userId: number) => {
-    const updateMsgList = msgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 1} : msg);
+    // const updateMsgList = msgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 1} : msg);
+    const updateMsgList = msgList.filter(msg => msg.Sender_Id != userId);
     dispatch(setMessageList(updateMsgList));
   }
 
