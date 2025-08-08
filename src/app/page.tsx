@@ -228,6 +228,7 @@ const ChatsContent: React.FC = () => {
   const [openModeratorsWidget, setOpenModeratorsWidget] = useState(false);
   const [openCensoredPopup, setOpenCensoredPopup] = useState(false);
   const [openManageChatPopup, setOpenManageChatPopup] = useState(false);
+  const [showPinnedMessagesView, setShowPinnedMessageView] = useState(false);
   const [groupBannedUsers, setGroupBannedUsers] = useState<ChatUser[]>([]);
   const [pinnedMsgIds, setPinnedMsgIds] = useState<number[]>([]);
   const [pinnedMessages, setPinnedMessages] = useState<MessageUnit[]>([]);
@@ -547,7 +548,7 @@ const ChatsContent: React.FC = () => {
       socket.off(ChatConst.GET_FAV_GROUPS, handleGetFavGroups);
       socket.off(ChatConst.GET_PINNED_MESSAGES, handleGetPinnedMesssages)
     };
-  }, []);
+  }, [currentUserId]);
 
   const handleBanGroupUser = (userId: number) => {
     // const updateMsgList = msgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 1} : msg);
@@ -1700,9 +1701,11 @@ const ChatsContent: React.FC = () => {
         onConfirm={updateChatLimits}
       />
 
-      <ManageChatPopup
+      <ManageChatPopup 
         isOpen={openManageChatPopup}
+        isOpenPinnedMsgView={showPinnedMessagesView}
         onClose={() => setOpenManageChatPopup(false)}
+        onOpenPinnedMsgView={setShowPinnedMessageView}
         pinnedMessages={filteredMsgList.filter(msg => pinnedMsgIds.includes(msg?.Id ?? -1))}
         unPinGroupMessage={unpinMessage}
         onClearChat={clearGroupChatMessages}

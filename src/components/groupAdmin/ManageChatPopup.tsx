@@ -7,26 +7,30 @@ import { faL } from "@fortawesome/free-solid-svg-icons";
 
 interface Props {
   isOpen: boolean;
+  isOpenPinnedMsgView: boolean;
   onClose: () => void;
   pinnedMessages: MessageUnit[];
   onClearChat: () => void;
+  onOpenPinnedMsgView: (val: boolean) => void;
   unPinGroupMessage: (msgId: number) => void;
 }
 
 const ManageChatPopup: React.FC<Props> = ({ 
   isOpen, 
+  isOpenPinnedMsgView,
+  onOpenPinnedMsgView,
   onClose, 
   pinnedMessages, 
   onClearChat,
   unPinGroupMessage
 }) => {
-  const [showPinnedPopover, setShowPinnedPopover] = useState(false);
+  // const [showPinnedPopover, setShowPinnedPopover] = useState(false);
   const [localPinnedMessages, setLocalPinnedMessages] = useState<MessageUnit[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       setLocalPinnedMessages(pinnedMessages);
-      setShowPinnedPopover(false);
+      // onOpenPinnedMsgView(false);
     }
   }, [isOpen, pinnedMessages]);
 
@@ -49,13 +53,13 @@ const ManageChatPopup: React.FC<Props> = ({
           ✕
         </button>
 
-        {!showPinnedPopover ? (
+        {!isOpenPinnedMsgView ? (
           <div className="w-80">
             <h2 className="text-lg font-semibold mb-4">Manage Chat</h2>
 
             <div className="space-y-3">
               <button
-                onClick={() => setShowPinnedPopover(true)}
+                onClick={() => onOpenPinnedMsgView(true)}
                 className="w-full text-left p-2 bg-gray-100 hover:bg-gray-200 rounded"
               >
                 📌 Pinned Messages
@@ -73,7 +77,7 @@ const ManageChatPopup: React.FC<Props> = ({
             <h2 className="text-lg font-semibold mb-4">Pinned Messages</h2>
 
             <button
-              onClick={() => setShowPinnedPopover(false)}
+              onClick={() => onOpenPinnedMsgView(false)}
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
             >
               ✕
@@ -85,7 +89,7 @@ const ManageChatPopup: React.FC<Props> = ({
               ) : (
                 localPinnedMessages.map((message, idx) => (
                   <Message
-                    key={`message-${idx}`}
+                    key={`message-${idx}`}  
                     avatar={message?.sender_avatar ? `${SERVER_URL}/uploads/users/${message.sender_avatar}` : null}
                     content={`${message.Content}`}
                     sender_banned={message.sender_banned}
