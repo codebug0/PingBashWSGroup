@@ -696,8 +696,6 @@ const ChatsContent: React.FC = () => {
   }
 
   const startCooldown = () => {
-    // Clear existing timer
-    console.log("=== Timer started ====")
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
