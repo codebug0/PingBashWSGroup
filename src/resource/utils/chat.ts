@@ -99,6 +99,12 @@ export const deleteGroupMsg = (token: string | null, msgId: number, groupId: num
   }
 }
 
+export const sendGroupNotify = (token: string | null, groupId: number | null, message: string) => {
+  if (token && groupId && message) {
+    socket.emit(ChatConst.SEND_GROUP_NOTIFY, { token, groupId, message })
+  }
+}
+
 export const banGroupUser = (token: string | null, groupId: number | null | undefined, userId: number | null | undefined) => {
   console.log(token, ",", groupId, ",", userId);
   if (token && groupId && userId) {
@@ -126,7 +132,6 @@ export const readGroupMsg = (token: string | null, groupId: number | null) => {
 }
 
 export const updateGroupFavInfo = (token: string | null, groupId: number | null | undefined, isMember: number | null) => {
-  console.log(" ===== aaaa ===", groupId, ",", isMember, token);
   if (token && groupId)
     socket.emit(ChatConst.UPDATE_FAV_GROUPS, { token, groupId, isMember })
 }
@@ -157,6 +162,49 @@ export const updateGroupModPermissions = (token: string | null, groupId: number 
         manage_chat: settings.manageChat,
         manage_censored: settings.censoredContent,
         ban_user: settings.banUsers
+      })
+  }
+}
+
+export const updateGroupChatboxConfig = (
+  token: string | null, 
+  groupId: number | null,
+  size_mode: 'fixed' | 'responsive',
+  frame_width: number | null,
+  frame_height: number | null,
+  bg_color: string,
+  title_color: string,
+  msg_bg_color: string,
+  msg_txt_color: string,
+  reply_msg_color: string,
+  msg_date_color: string,
+  input_bg_color: string,
+  show_user_img: boolean,
+  custom_font_size: boolean,
+  font_size: number,
+  round_corners: boolean,
+  corner_radius: number
+) => {
+  if (token && groupId) {
+    socket.emit(ChatConst.UPDATE_GROUP_CHATBOX_STYLE, 
+      {
+        token, 
+        groupId, 
+        size_mode,
+        frame_width,
+        frame_height,
+        bg_color,
+        title_color,
+        msg_bg_color,
+        msg_txt_color,
+        reply_msg_color,
+        msg_date_color,
+        input_bg_color,
+        show_user_img,
+        custom_font_size,
+        font_size,
+        round_corners,
+        corner_radius
       })
   }
 }

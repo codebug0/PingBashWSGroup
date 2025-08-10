@@ -66,7 +66,7 @@ export default function FilterWidget({
   }, [filteredUser])
 
   return (
-    <ul className="flex flex-col gap-2 w-full">
+    <div className="flex flex-col gap-2 w-full">
       {filterOptions.map((item, idx) => (
         <div className="flex flex-col" key={item.id}>
           <div className="flex items-center mb-2 cursor-pointer">
@@ -138,6 +138,6 @@ export default function FilterWidget({
           )}
         </div>
       ))}
-    </ul>
+    </div>
   )
 }

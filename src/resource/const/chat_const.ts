@@ -47,4 +47,6 @@ export default {
   UPDATE_GROUP_POST_LEVEL: "udpate group post level",
   UPDATE_MOD_PERMISSIONS: "update mod permissions",
   UNBAN_GROUP_USERS: "unban group users",
+  SEND_GROUP_NOTIFY: "send group notify",
+  UPDATE_GROUP_CHATBOX_STYLE: "udpate group chatbox style",
 }

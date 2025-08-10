@@ -73,7 +73,7 @@ const ManageChatPopup: React.FC<Props> = ({
             </div>
           </div>
         ) : (
-          <div className="w-[480px]">
+          <div className="w-[min(calc(100vw-64px),480px)]">
             <h2 className="text-lg font-semibold mb-4">Pinned Messages</h2>
 
             <button

@@ -16,6 +16,9 @@ export const USER_ID_KEY = "MayaIQ_User";
 // Group Chatting box Style Default Params
 export const SIZE_MODE = "responsive";
 
+export const CHAT_BOX_WIDTH = 1500;
+export const CHAT_BOX_HEIGHT = 1200;
+
 export const BG_COLOR = "#FFFFFF";
 export const BORDER_COLOR =  '#CC0000';
 export const TITLE_COLOR = '#333333';

@@ -24,17 +24,19 @@ import {
   updateGroupModerators,
   updateGroupModPermissions,
   updateCensoredWords,
-  unbanGroupUsers
+  unbanGroupUsers,
+  sendGroupNotify,
+  updateGroupChatboxConfig
  } from "@/resource/utils/chat";
 import { useSearchParams } from "next/navigation";
 import { Popover, PopoverTrigger, PopoverContent } from "@nextui-org/popover";
 import ChatConst from "@/resource/const/chat_const";
-import { GROUP_CREATER_ID, GROUP_MEMBER_IDS, SELECTED_GROUP_ID, SERVER_URL, TOKEN_KEY, USER_ID_KEY } from "@/resource/const/const";
+import { CHAT_BOX_HEIGHT, CHAT_BOX_WIDTH, GROUP_CREATER_ID, GROUP_MEMBER_IDS, SELECTED_GROUP_ID, SERVER_URL, TOKEN_KEY, USER_ID_KEY } from "@/resource/const/const";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
 import { chatDate, containsURL, getCensoredMessage, getCensoredWordArray } from "@/resource/utils/helpers";
 import { MessageUnit, User, ChatOption, ChatGroup, ChatUser } from "@/interface/chatInterface";
-import { setMessageList } from "@/redux/slices/messageSlice";
+// import { setMessageList } from "@/redux/slices/messageSlice";
 import toast from "react-hot-toast";
 import messages from "@/resource/const/messages";
 import axios from "axios";
@@ -92,6 +94,9 @@ import CensoredListPopup from "@/components/groupAdmin/CensoredContentsPopup";
 import CensoredContentsPopup from "@/components/groupAdmin/CensoredContentsPopup";
 import BannedUsersPopup from "@/components/groupAdmin/BannedUsersPopup";
 import PinnedMessagesWidget from "@/components/chats/PinnedMessagesWidget";
+import SendNotificationPopup from "@/components/groupAdmin/SendNotificationPopup";
+import GroupCreatPopup from "@/components/groupAdmin/groupCreatPopup";
+import { GroupPropsEditWidget } from "@/components/chats/GroupPropsEditWidget";
 
 
 interface Attachment {
@@ -137,7 +142,9 @@ const ChatsContent: React.FC = () => {
   const [showEmoji, setShowEmoji] = useState(false)
   const [attachment, setAttachment] = useState<Attachment>()
 
-  const msgList: MessageUnit[] = useSelector((state: RootState) => state.msg.messageList)
+  // const msgList: MessageUnit[] = useSelector((state: RootState) => state.msg.messageList)
+  const [groupMsgList, setGroupMsgList] = useState<MessageUnit[]>([])
+  const [sentGroupNotification, setSentGroupNotification] = useState(false)
   // const [prevMsgList, setPrevMsgList] = useState<MessageUnit[]>([]);
 
   const [group, setGroup] = useState<ChatGroup>();
@@ -190,8 +197,39 @@ const ChatsContent: React.FC = () => {
 
   const [groupConfig, setGroupConfig] = useState<ChatWidgetConfig>({
     sizeMode: 'fixed',
-    width: 500,
-    height: 400,
+    width: CHAT_BOX_WIDTH,
+    height: CHAT_BOX_HEIGHT,
+    colors: {
+      background: BG_COLOR,
+      border: BORDER_COLOR,
+      title: TITLE_COLOR,
+      ownerMsg: OWNER_MSG_COLOR,
+      msgBg: MSG_BG_COLOR,
+      replyText: REPLY_MGS_COLOR,
+      msgText: MSG_COLOR,
+      scrollbar: SCROLLBAR_COLOR,
+      inputBg: INPUT_BG_COLOR,
+      inputText: '#000000',
+      dateText: MSG_DATE_COLOR,
+      innerBorder: '#CC0000'
+    },
+    settings: {
+      userImages: SHOW_USER_IMG,
+      allowUserMessageStyles: ALLOW_USER_MSG_STYLE,
+      customFontSize: false,
+      fontSize: FONT_SIZE,
+      showTimestamp: false,
+      showUrl: false,
+      privateMessaging: false,
+      roundCorners: ROUND_CORNORS,
+      cornerRadius: CORNOR_RADIUS
+    }
+  });
+
+  const [groupEditConfig, setGroupEditConfig] = useState<ChatWidgetConfig>({
+    sizeMode: 'fixed',
+    width: CHAT_BOX_WIDTH,
+    height: CHAT_BOX_HEIGHT,
     colors: {
       background: BG_COLOR,
       border: BORDER_COLOR,
@@ -237,9 +275,12 @@ const ChatsContent: React.FC = () => {
   const [filterOptions, setFilterOption] = useState<{ id: number; name: string }[]>([]);
   const [filterMode, setFilterMode]  = useState(0)
   const [filteredUser, setFilteredUser] = useState<ChatUser | null>(null)  // For the user selected in Filter mode for 1 on 1 Mode
+  const [openSendGroupNotification, setOpenSendGroupNotification] = useState(false)
 
   const [filteredMsgList, setFilteredMsgList] = useState<MessageUnit[]>([])
   const [filteredPrevMsgList, setFilteredPrevMsgList] = useState<MessageUnit[]>([])
+
+  const [openEditGroupPop, setOpenEditGroupPop] = useState(false);
   
   const [isBannedUser, setIsBanneduser] = useState(false);
   const [canPost, setCanPost] = useState(true)
@@ -248,6 +289,7 @@ const ChatsContent: React.FC = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [canSend, setCanSend] = useState(true);
   const [cooldown, setCooldown] = useState(0);
+  const hasShownGroupNotify = useRef(false);
   //--------------------------
 
 
@@ -337,12 +379,20 @@ const ChatsContent: React.FC = () => {
     };   
 
     const handleGetGroupHistory = (data: MessageUnit[]) => {
-      dispatch(setMessageList([...data]));
+      // dispatch(setMessageList([...data]));
+      setGroupMsgList([...data])
+    }
+
+    const handleSendGroupNotify = (msg: string | null) => {  
+      if (!hasShownGroupNotify.current) {
+        toast.success("Sent notifications successfully")
+        hasShownGroupNotify.current = true
+      }      
     }
 
     // Register socket listener
     socket.on(ChatConst.USER_LOGGED_AS_ANNON, handleLogginAsAnon);
-    
+    socket.on(ChatConst.SEND_GROUP_NOTIFY, handleSendGroupNotify)
 
     socket.on(ChatConst.GET_GROUP_HISTORY, handleGetGroupHistory)
 
@@ -350,6 +400,7 @@ const ChatsContent: React.FC = () => {
     return () => {
       socket.off(ChatConst.USER_LOGGED_AS_ANNON, handleLogginAsAnon);
       socket.off(ChatConst.GET_GROUP_HISTORY, handleGetGroupHistory)
+      socket.off(ChatConst.SEND_GROUP_NOTIFY, handleSendGroupNotify)
     };
   }, []);
 
@@ -358,8 +409,8 @@ const ChatsContent: React.FC = () => {
       setGroupConfig({
         ...groupConfig,
         sizeMode: group?.size_mode ?? "fixed",
-        width: group?.frame_width ?? 500,
-        height: group?.frame_height ?? 400,
+        width: group?.frame_width ?? CHAT_BOX_WIDTH,
+        height: group?.frame_height ?? CHAT_BOX_HEIGHT,
         colors: {
           ...groupConfig.colors,
           background: group?.bg_color ?? BG_COLOR,
@@ -383,8 +434,8 @@ const ChatsContent: React.FC = () => {
       setGroupConfig({
         ...groupConfig,
         sizeMode: group?.size_mode ?? "fixed",
-        width: group?.frame_width ?? 500,
-        height: group?.frame_height ?? 400,
+        width: group?.frame_width ?? CHAT_BOX_WIDTH,
+        height: group?.frame_height ?? CHAT_BOX_HEIGHT,
         colors: {
           ...groupConfig.colors,
           background: darkenColor(group?.bg_color ?? BG_COLOR),
@@ -494,12 +545,12 @@ const ChatsContent: React.FC = () => {
     setFilteredPrevMsgList(filteredMsgList)
     let newMsgs = []
     if (currentUserId == null || myMemInfo == null) {
-      newMsgs = msgList.filter(msg => msg.Receiver_Id === null)      
+      newMsgs = groupMsgList.filter(msg => msg.Receiver_Id === null)      
     } else {
       if (myMemInfo?.role_id == 1 || myMemInfo?.role_id == 2) {
-        newMsgs = msgList.filter(msg => msg.Receiver_Id == null || msg.Receiver_Id == 1 || msg.Receiver_Id == currentUserId || msg.Sender_Id == currentUserId)        
+        newMsgs = groupMsgList.filter(msg => msg.Receiver_Id == null || msg.Receiver_Id == 1 || msg.Receiver_Id == currentUserId || msg.Sender_Id == currentUserId)        
       } else {
-        newMsgs = msgList.filter(msg => msg.Receiver_Id == null || msg.Receiver_Id == currentUserId || msg.Sender_Id == currentUserId)
+        newMsgs = groupMsgList.filter(msg => msg.Receiver_Id == null || msg.Receiver_Id == currentUserId || msg.Sender_Id == currentUserId)
       }
     }
     setFilteredMsgList(newMsgs)
@@ -523,7 +574,7 @@ const ChatsContent: React.FC = () => {
         }          
       }
     }
-  }, [msgList, currentUserId])
+  }, [groupMsgList, currentUserId])
 
   useEffect(() => {
     let isMounted = true;
@@ -531,12 +582,7 @@ const ChatsContent: React.FC = () => {
     const handleGetFavGroups = (data: ChatGroup[]) => {
       if (!isMounted) return;
       setFavGroups(data);
-    }; 
-
-    const handleGetPinnedMesssages = (msgIds: number[]) => {
-      if (!isMounted) return;
-      setPinnedMsgIds(msgIds);
-    }    
+    };        
 
     // Register handlers
     socket.on(ChatConst.GET_FAV_GROUPS, handleGetFavGroups);
@@ -552,20 +598,27 @@ const ChatsContent: React.FC = () => {
     };
   }, [currentUserId]);
 
+  const handleGetPinnedMesssages = (msgIds: number[]) => {
+      setPinnedMsgIds(msgIds);
+    } 
+
   const handleBanGroupUser = (userId: number) => {
     // const updateMsgList = msgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 1} : msg);
-    const updateMsgList = msgList.filter(msg => msg.Sender_Id != userId);
-    dispatch(setMessageList(updateMsgList));
+    const updateMsgList = groupMsgList.filter(msg => msg.Sender_Id != userId);
+    setGroupMsgList(updateMsgList)
+    // dispatch(setMessageList(updateMsgList));
   }
 
   const handleUnbanGroupUser = (userId: number) => {
-    const updateMsgList = msgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 0} : msg);
-    dispatch(setMessageList(updateMsgList));
+    const updateMsgList = groupMsgList.map(msg => msg.Sender_Id == userId ? {...msg, sender_banned: 0} : msg);
+    // dispatch(setMessageList(updateMsgList));
+    setGroupMsgList(updateMsgList)
   }
 
   const handleUnbanGroupUsers = (userIds: number[] | null) => {
-    const updateMsgList = msgList.map(msg => userIds?.includes(msg.Sender_Id ?? -1) ? {...msg, sender_banned: 0} : msg);
-    dispatch(setMessageList(updateMsgList));
+    const updateMsgList = groupMsgList.map(msg => userIds?.includes(msg.Sender_Id ?? -1) ? {...msg, sender_banned: 0} : msg);
+    // dispatch(setMessageList(updateMsgList));
+    setGroupMsgList(updateMsgList)
   }
 
   const handleGroupUpdated = (updatedGroup: ChatGroup) => {
@@ -579,21 +632,24 @@ const ChatsContent: React.FC = () => {
   }
 
   const handleDeleteGroupMsg = (data: number) => {
-    const updateMsgList = msgList.filter(msg => msg.Id != data);
-    dispatch(setMessageList([...updateMsgList]))
+    const updateMsgList = groupMsgList.filter(msg => msg.Id != data);
+    // dispatch(setMessageList([...updateMsgList]))
+    setGroupMsgList(updateMsgList)
   }
 
   const handleSendGroupMsg = (data: MessageUnit[]) => {
     const groupId = data?.length && data[data.length - 1].group_id; 
     if (groupId === group?.id) {
-      const newList = mergeArrays(msgList, data);
-      dispatch(setMessageList([...newList]));        
+      const newList = mergeArrays(groupMsgList, data);
+      // dispatch(setMessageList([...newList]));    
+      setGroupMsgList(newList)    
     }
   }
 
   const handleClearGroupChat = (groupId: number) => {
     if (groupId == group?.id) {
-      dispatch(setMessageList([]));
+      // dispatch(setMessageList([]));
+      setGroupMsgList([])
     }
     dispatch(setIsLoading(false));
   }  
@@ -616,14 +672,23 @@ const ChatsContent: React.FC = () => {
   socket.on(ChatConst.EXPIRED, handleExpired)    
 
   useEffect(() => {
-    setGroupMenuOptions([
-      {id: 1, name: "Copy Group Link"},
-      {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
-      {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"}
-      // {id: 3, name: "Hide Chat"},
-      // {id: 4, name: "Subscribe to Notifications"}
-    ])
-  }, [favGroups, group, hideChat]);
+    if (currentUserId == group?.creater_id) {
+      setGroupMenuOptions([
+        {id: 1, name: "Copy Group Link"},
+        {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
+        {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"},
+        {id: 4, name: "Send a Notification"},
+        {id: 5, name: "Edit Chatbox Style"}
+      ])
+    } else {
+      setGroupMenuOptions([
+        {id: 1, name: "Copy Group Link"},
+        {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
+        {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"}
+      ])
+    }
+    
+  }, [favGroups, group, hideChat, currentUserId]);
 
   useEffect(() => {
     if (currentUserId && currentUserId > 0) {
@@ -930,6 +995,13 @@ const ChatsContent: React.FC = () => {
     setDeleteMsgId(null);
   }
 
+  const onSendGroupNotification = (msg: string) => {
+    const token = localStorage.getItem(TOKEN_KEY)
+    setSentGroupNotification(false)
+    hasShownGroupNotify.current = false
+    sendGroupNotify(token, group?.id ?? null, msg)
+  }
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.keyCode === 27) setShowEmoji(false)
@@ -965,6 +1037,10 @@ const ChatsContent: React.FC = () => {
       updateGroupFavInfo(localStorage.getItem(TOKEN_KEY), group?.id, updateIsMember);
     } else if (menuId == 3) {
       setHideChat(!hideChat)
+    } else if (menuId == 4) {
+      setOpenSendGroupNotification(true)
+    } else if (menuId == 5) {
+      setOpenEditGroupPop(true)
     }
   }
 
@@ -1037,8 +1113,6 @@ const ChatsContent: React.FC = () => {
       top: scrollTop,
       behavior: 'smooth',
     });
-
-    // container.scrollTop = containerHeight;
   }
 
   useEffect(() => {
@@ -1165,6 +1239,31 @@ const ChatsContent: React.FC = () => {
     dispatch(setIsLoading(true));
   }
 
+  const onSaveGroupConfig = () => {
+    const token = localStorage.getItem(TOKEN_KEY)
+    updateGroupChatboxConfig(
+      token,
+      group?.id ?? null,
+      groupEditConfig.sizeMode,
+      groupEditConfig.width,
+      groupEditConfig.height,
+      groupEditConfig.colors.background,
+      groupEditConfig.colors.title,
+      groupEditConfig.colors.msgBg,
+      groupEditConfig.colors.msgText,
+      groupEditConfig.colors.replyText,
+      groupEditConfig.colors.dateText,
+      groupEditConfig.colors.inputBg,
+      groupEditConfig.settings.userImages,
+      groupEditConfig.settings.customFontSize,
+      groupEditConfig.settings.fontSize,
+      groupEditConfig.settings.roundCorners,
+      groupEditConfig.settings.cornerRadius
+    )
+    setOpenEditGroupPop(false)
+    dispatch(setIsLoading(true));
+  }
+
   const pinMessage = (msgId: number | null) => {
     const token = localStorage.getItem(TOKEN_KEY)
     pinChatmessage(token, group?.id, msgId);
@@ -1215,21 +1314,25 @@ const ChatsContent: React.FC = () => {
       {/* <ChatangoWidget /> */}
       {/* <iframe src="http://mg.pingbash.com" width="800" height="600"></iframe> */}
       <div className="content-wrapper w-full max-lg:px-0 h-screen overflow-y-auto overflow-x-hidden">
-        <div className="page-content w-full pt-[36px] flex flex-col px-[24px] pb-[24px] relative max-lg:px-[20px] max-lg:pt-0 max-lg:top-[52px] max-[810px]:pb-[20px]">
+        {/* <div className="page-content w-full pt-[36px] h-full flex items-center justify-center px-[24px] pb-[24px] relative max-lg:px-[20px] "> */}
+        <div className="page-content h-full flex items-center justify-center relative ">
           {/* <PageHeader /> */}
-          <div className={`flex justify-center gap-[20px] w-full relative ${isMobile ? "h-mob-chatbox" : "h-[calc(100vh-60px)]"}`}>
+          <div className={`flex justify-center gap-[20px] w-full relative`}
+            style={{
+              width: groupConfig.sizeMode == "fixed" ? groupConfig.width : "100%",
+              height: groupConfig.sizeMode == "fixed" ? groupConfig.height : "100%",
+              maxWidth: "100%",
+              maxHeight: "100%"
+            }}
+          >
             {/* Chat Left Side Start ---Chat Hisotry */}
             
             {/* Chat Left Side End ---Chat History */}
 
             {/* Chat Right Side Start ---Message History */}
-            <section className={`flex flex-col justify-between border border-gray-500 rounded-[10px] duration-500 max-[810px]:w-full`}
+            <section className={`flex flex-col justify-between bg-white border border-gray-500 rounded-[10px] duration-500 w-full`}
               style={{
-                borderRadius: groupConfig.settings.roundCorners ? groupConfig.settings.cornerRadius ?? CORNOR_RADIUS : CORNOR_RADIUS,
-                width: groupConfig.sizeMode == "fixed" ? groupConfig.width : "100%",
-                height: groupConfig.sizeMode == "fixed" ? groupConfig.height : "100%",
-                maxWidth: "100%",
-                maxHeight: "100%"
+                borderRadius: groupConfig.settings.roundCorners ? groupConfig.settings.cornerRadius ?? CORNOR_RADIUS : CORNOR_RADIUS,                
               }}
             >
 
@@ -1650,6 +1753,23 @@ const ChatsContent: React.FC = () => {
         isOpen={showSigninPopup} 
         onClose={() => setShowSigninPopup(false)} 
         onSignin={handleSignin}
+      />
+      <GroupCreatPopup isOpen={openEditGroupPop} onClose={() => setOpenEditGroupPop(false)}>
+        <h2 className="text-xl font-semibold mb-2 flex justify-center">Group: {group?.name}</h2>
+        <GroupPropsEditWidget
+          groupName={group?.name ?? ""} 
+          groupConfig={groupConfig}
+          onUpdatedConfig={(conf) => {
+            setGroupEditConfig(conf);
+          }}
+        />         
+        <button  className={`h-[40px] mt-[20px] py-[2px] rounded-[12px] font-semibold text-white w-full bg-gradient-to-r from-[#BD00FF] to-[#3A4EFF] cursor-pointer `}
+        onClick={() => onSaveGroupConfig()}>Save</button>
+      </GroupCreatPopup>
+      <SendNotificationPopup
+        isOpen={openSendGroupNotification}
+        onClose={() => setOpenSendGroupNotification(false)}
+        onSend={onSendGroupNotification}
       />
       <ConfirmPopup
         title={"Delete message?"}
