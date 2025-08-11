@@ -26,7 +26,8 @@ import {
   updateCensoredWords,
   unbanGroupUsers,
   sendGroupNotify,
-  updateGroupChatboxConfig
+  updateGroupChatboxConfig,
+  timeoutGroupUser
  } from "@/resource/utils/chat";
 import { useSearchParams } from "next/navigation";
 import { Popover, PopoverTrigger, PopoverContent } from "@nextui-org/popover";
@@ -34,7 +35,7 @@ import ChatConst from "@/resource/const/chat_const";
 import { CHAT_BOX_HEIGHT, CHAT_BOX_WIDTH, GROUP_CREATER_ID, GROUP_MEMBER_IDS, SELECTED_GROUP_ID, SERVER_URL, TOKEN_KEY, USER_ID_KEY } from "@/resource/const/const";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
-import { chatDate, containsURL, getCensoredMessage, getCensoredWordArray } from "@/resource/utils/helpers";
+import { chatDate, containsURL, getCensoredMessage, getCensoredWordArray, isTimedout } from "@/resource/utils/helpers";
 import { MessageUnit, User, ChatOption, ChatGroup, ChatUser } from "@/interface/chatInterface";
 // import { setMessageList } from "@/redux/slices/messageSlice";
 import toast from "react-hot-toast";
@@ -831,6 +832,12 @@ const ChatsContent: React.FC = () => {
       toast.error("You can't send message now. You can send " + cooldown + " seconds later.");
       return;
     }
+    const memInfo = group?.members?.find(user => user.id == getCurrentUserId());
+    const toTime = isTimedout(memInfo?.to_time ?? "")
+    if (toTime != "" && group?.creater_id != getCurrentUserId()) {
+      toast.error("You can't send message now. You are timed out. You can send message " + toTime + " later.");
+      return
+    }
     let receiverid = null
     if (filterMode == 2) {
       receiverid = 1
@@ -1294,6 +1301,13 @@ const ChatsContent: React.FC = () => {
     dispatch(setIsLoading(true));
   }
 
+  const onTimeOutGroupUser = (userId: number | null) => {
+    console.log("====senderId===", userId)
+    const token = localStorage.getItem(TOKEN_KEY)
+    timeoutGroupUser(token, group?.id, userId)
+    dispatch(setIsLoading(true));
+  }
+
   const updateCensoredContents = (contents: string | null) => {
     const token = localStorage.getItem(TOKEN_KEY)
     updateCensoredWords(token, group?.id, contents);
@@ -1440,6 +1454,12 @@ const ChatsContent: React.FC = () => {
                                 toast.error("You can't send message now. You can send " + cooldown + " seconds later.");
                                 return;
                               }
+                              const memInfo = group?.members?.find(user => user.id == getCurrentUserId());
+                              const toTime = isTimedout(memInfo?.to_time ?? "")
+                              if (toTime != "" && group?.creater_id != getCurrentUserId()) {
+                                toast.error("You can't send message now. You are timed out. You can send message " + toTime + " later.");
+                                return
+                              }
                               setReplyMsg(filteredMsgList.find(msg => msg.Id === msgId));
                               setShowMsgReplyView(true);
                             }}
@@ -1451,7 +1471,7 @@ const ChatsContent: React.FC = () => {
                               if (!canPinMessage) return
                               pinnedMsgIds.includes(message.Id ?? -1) ? unpinMessage(msgId) : pinMessage(msgId)
                             }}
-                            
+                            onTimeOutUser={onTimeOutGroupUser} 
                           />
                         </div>
                         
@@ -1505,6 +1525,12 @@ const ChatsContent: React.FC = () => {
                             toast.error("You can't send message now. You can send " + cooldown + " seconds later.");
                             return;
                           }
+                          const memInfo = group?.members?.find(user => user.id == getCurrentUserId());
+                          const toTime = isTimedout(memInfo?.to_time ?? "")
+                          if (toTime != "" && group?.creater_id != getCurrentUserId()) {
+                            toast.error("You can't send message now. You are timed out. You can send message " + toTime + " later.");
+                            return
+                          }
                           imageUploadRef.current?.click()
                         }} 
                         className="w-[24px] h-[24px]"><FontAwesomeIcon icon={faImages} className="text-[24px]" />
@@ -1518,6 +1544,12 @@ const ChatsContent: React.FC = () => {
                           if (!canSend) {
                             toast.error("You can't send message now. You can send " + cooldown + " seconds later.");
                             return;
+                          }
+                          const memInfo = group?.members?.find(user => user.id == getCurrentUserId());
+                          const toTime = isTimedout(memInfo?.to_time ?? "")
+                          if (toTime != "" && group?.creater_id != getCurrentUserId()) {
+                            toast.error("You can't send message now. You are timed out. You can send message " + toTime + " later.");
+                            return
                           }
                           fileUploadRef.current?.click()
                         }} 
@@ -1552,6 +1584,12 @@ const ChatsContent: React.FC = () => {
                           if (!canSend) {
                             toast.error("You can't send message now. You can send " + cooldown + " seconds later.");
                             return;
+                          }
+                          const memInfo = group?.members?.find(user => user.id == getCurrentUserId());
+                          const toTime = isTimedout(memInfo?.to_time ?? "")
+                          if (toTime != "" && group?.creater_id != getCurrentUserId()) {
+                            toast.error("You can't send message now. You are timed out. You can send message " + toTime + " later.");
+                            return
                           }
                           setShowEmoji(!showEmoji)
                         }} 

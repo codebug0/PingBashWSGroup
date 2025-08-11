@@ -34,6 +34,7 @@ export interface ChatUser {
   manage_censored: boolean | null;
   ban_user: boolean | null;
   filter_mode: number;
+  to_time: string | null;
 }
 
 export interface ChatOption {

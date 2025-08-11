@@ -49,4 +49,5 @@ export default {
   UNBAN_GROUP_USERS: "unban group users",
   SEND_GROUP_NOTIFY: "send group notify",
   UPDATE_GROUP_CHATBOX_STYLE: "udpate group chatbox style",
+  TIMEOUT_USER: "timout user",
 }

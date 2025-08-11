@@ -244,3 +244,9 @@ export const getPinnedMessages = (token: string | null, groupId: number | null) 
     socket.emit(ChatConst.GET_PINNED_MESSAGES, { token, groupId })
   }
 }
+
+export const timeoutGroupUser = (token: string | null, groupId: number | null | undefined, userId: number | null) => {
+  if (token && groupId && userId) {
+    socket.emit(ChatConst.TIMEOUT_USER, { token, groupId, userId })
+  }
+}

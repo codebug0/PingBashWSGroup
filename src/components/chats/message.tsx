@@ -11,6 +11,7 @@ import {
 import Lottie from "lottie-react"
 import { stickers } from './LottiesStickers';
 import { ChatGroup, MessageUnit } from '@/interface/chatInterface';
+import { isTimedout } from '@/resource/utils/helpers';
 
 interface MessageProps {
   avatar: string | null, 
@@ -44,6 +45,7 @@ interface MessageProps {
   onReplyMessage: (msgId: number | null | undefined) => void;
   onReplyMsgPartClicked: (msgId: number | null | undefined) => void;
   onEndedHighlight: () => void;
+  onTimeOutUser:(userId: number | null) => void;
 }
 
 const Message: React.FC<MessageProps> = ({ 
@@ -73,11 +75,13 @@ const Message: React.FC<MessageProps> = ({
   onPinMessage,
   onReplyMessage,
   onReplyMsgPartClicked,
-  onEndedHighlight
+  onEndedHighlight,
+  onTimeOutUser
 }) => {
   const messageRef = useRef<HTMLDivElement | null>(null);
   const [highlight, setHighlight] = useState(false);
   const [filterModeText, setFilterModeText] = useState<string | null>(null)
+  const [showTO, setShowTO] = useState(false)
 
   const onBanButtonClicked = () => onBanUser(message?.Sender_Id ?? null);
   const onDeleteButtonClicked = () => onDelete(message?.Id);
@@ -156,6 +160,13 @@ const Message: React.FC<MessageProps> = ({
           setFilterModeText("1 on 1: " + receiverName)
         }        
       }
+
+      const memInfo = group?.members?.find(user => user.id == message.Sender_Id);
+      if (isTimedout(memInfo?.to_time ?? "") == "" && isCreater && !ownMessage) {
+        setShowTO(true)
+      } else {
+        setShowTO(false)
+      }
     }
   }, [message, group, userId])
 
@@ -204,6 +215,14 @@ const Message: React.FC<MessageProps> = ({
           <div className="h-[16px] flex items-center whitespace-nowrap absolute top-[4px] right-0 gap-4 mr-[12px]">
             {show_reply && <p className="text-[12px] cursor-pointer" style={{ color: date_color, fontSize: font_size * 0.9 }} onClick={onReplyButtonClicked}>Reply</p>}
             <p className="text-[12px]" style={{ color: date_color, fontSize: font_size * 0.9 }}>{time}</p>
+            {showTO &&
+            <button 
+              onClick={() => onTimeOutUser(message?.Sender_Id ?? null)} 
+              className={`${sender_banned === 1 ? "cursor-not-allowed" : "cursor-pointer"}`}
+              style={{ color: date_color, fontSize: font_size, fontWeight: 'bold' }}
+            >
+              TO
+            </button>}
             {isPinned && <button onClick={onPinButtonClicked}>
               <FontAwesomeIcon icon={faThumbtackSlash} className='rotate-45 transition-transform' style={{ color: date_color, fontSize: font_size }} />
             </button>}

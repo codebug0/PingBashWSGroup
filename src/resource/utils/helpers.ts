@@ -75,6 +75,42 @@ export const containsURL = (text: string) => {
   return regex.test(text);
 }
 
+export const isTimedout  = (inputDate: string | "") => {
+
+  if (inputDate == "" || inputDate == undefined || inputDate == null || inputDate == "undefined") {
+    return "";
+  }
+  // Convert input date to a Date object
+  const targetDate: Date = new Date(inputDate + "Z");
+
+  // Get the current date
+  const now: Date = new Date();
+  // Calculate the difference in milliseconds
+  const differenceInMillis: number = targetDate.getTime() - now.getTime();
+  console.log(" === now ===", differenceInMillis);
+  if (differenceInMillis < 0) return ""
+  // Convert milliseconds to other units
+  const millisecondsInSecond: number = 1000;
+  const millisecondsInMinute: number = millisecondsInSecond * 60;
+  const millisecondsInHour: number = millisecondsInMinute * 60;
+  const millisecondsInDay: number = millisecondsInHour * 24;
+
+  const daysDifference: number = Math.floor(differenceInMillis / millisecondsInDay);
+  const hoursDifference: number = Math.floor((differenceInMillis % millisecondsInDay) / millisecondsInHour);
+  const minutesDifference: number = Math.floor((differenceInMillis % millisecondsInHour) / millisecondsInMinute);
+  const secondsDifference: number = Math.floor((differenceInMillis % millisecondsInMinute) / millisecondsInSecond);
+
+  return daysDifference > 0 
+          ? daysDifference + "d " 
+          : hoursDifference > 0 
+            ? hoursDifference + "h " 
+            : minutesDifference > 0 
+              ? minutesDifference + "m " 
+              : secondsDifference > 0 
+                ? secondsDifference + "s " 
+                : "Just now"
+}
+
 export const chatDate = (inputDate: string | "") => {
 
   if (inputDate == "" || inputDate == undefined || inputDate == null || inputDate == "undefined") {
