@@ -221,6 +221,18 @@ export const updateGroupModerators = (token: string | null, groupId: number | nu
   }
 }
 
+export const getGroupBlockedUsers = (token: string | null, groupId: number | null | undefined) => {
+  if (token && groupId) {
+    socket.emit(ChatConst.GET_GROUP_BLOCKED_USERS, { token, groupId })
+  }
+}
+
+export const updateGroupBlockedUsers = (token: string | null, groupId: number | null | undefined, userIds: number[] | null) => {
+  if (token && groupId) {
+    socket.emit(ChatConst.UPDATE_GROUP_BLOCKED_USERS, { token, groupId, userIds })
+  }
+}
+
 export const clearGroupChat = (token: string | null, groupId: number | null | undefined) => {
   if (token && groupId) {
     socket.emit(ChatConst.CLEAR_GROUP_CHAT, { token, groupId })

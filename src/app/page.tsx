@@ -27,7 +27,9 @@ import {
   unbanGroupUsers,
   sendGroupNotify,
   updateGroupChatboxConfig,
-  timeoutGroupUser
+  timeoutGroupUser,
+  getGroupBlockedUsers,
+  updateGroupBlockedUsers
  } from "@/resource/utils/chat";
 import { useSearchParams } from "next/navigation";
 import { Popover, PopoverTrigger, PopoverContent } from "@nextui-org/popover";
@@ -98,6 +100,7 @@ import PinnedMessagesWidget from "@/components/chats/PinnedMessagesWidget";
 import SendNotificationPopup from "@/components/groupAdmin/SendNotificationPopup";
 import GroupCreatPopup from "@/components/groupAdmin/groupCreatPopup";
 import { GroupPropsEditWidget } from "@/components/chats/GroupPropsEditWidget";
+import BlockedUsersPopup from "@/components/groupAdmin/BlockUsersPopup";
 
 
 interface Attachment {
@@ -194,8 +197,6 @@ const ChatsContent: React.FC = () => {
 
   const [showSigninPopup, setShowSigninPopup] = useState<boolean>(false);
 
-  const [userNavShow, setUserNavShow] = useState(params.get("User") ? false : true);
-
   const [groupConfig, setGroupConfig] = useState<ChatWidgetConfig>({
     sizeMode: 'fixed',
     width: CHAT_BOX_WIDTH,
@@ -280,6 +281,8 @@ const ChatsContent: React.FC = () => {
 
   const [filteredMsgList, setFilteredMsgList] = useState<MessageUnit[]>([])
   const [filteredPrevMsgList, setFilteredPrevMsgList] = useState<MessageUnit[]>([])
+  const [blockedUserIds, setBlockedUserIds] = useState<number[]>([])
+  const [openBlockedUsersPopup, setOpenBlockedUsersPopup] = useState(false);
 
   const [openEditGroupPop, setOpenEditGroupPop] = useState(false);
   
@@ -468,10 +471,11 @@ const ChatsContent: React.FC = () => {
       console.log("== Token 1111 ===", token)
       setPinnedMsgIds([]);
       getPinnedMessages(token, group?.id)
+      getBlockedUsers();
     }
     setShowMsgReplyView(false);
     setFilterMode(0)
-  }, [group, currentUserId]);
+  }, [group?.id, currentUserId]);
 
   useEffect(() => {
     dispatch(setIsLoading(false)); 
@@ -554,6 +558,11 @@ const ChatsContent: React.FC = () => {
         newMsgs = groupMsgList.filter(msg => msg.Receiver_Id == null || msg.Receiver_Id == currentUserId || msg.Sender_Id == currentUserId)
       }
     }
+
+    if (blockedUserIds?.length > 0) {
+      newMsgs = newMsgs.filter(msg => !blockedUserIds.includes(msg.Sender_Id ?? -1))
+    }
+
     setFilteredMsgList(newMsgs)
 
     const prevLength = filteredMsgList.length;
@@ -575,7 +584,7 @@ const ChatsContent: React.FC = () => {
         }          
       }
     }
-  }, [groupMsgList, currentUserId])
+  }, [groupMsgList, currentUserId, blockedUserIds])
 
   useEffect(() => {
     let isMounted = true;
@@ -647,6 +656,11 @@ const ChatsContent: React.FC = () => {
     }
   }
 
+  const handleGetGroupBlockedUsers = (data: number[]) => {
+    dispatch(setIsLoading(false));
+    setBlockedUserIds(data)
+  }
+
   const handleClearGroupChat = (groupId: number) => {
     if (groupId == group?.id) {
       // dispatch(setMessageList([]));
@@ -669,6 +683,7 @@ const ChatsContent: React.FC = () => {
   socket.on(ChatConst.SEND_GROUP_MSG, handleSendGroupMsg);
   socket.on(ChatConst.DELETE_GROUP_MSG, handleDeleteGroupMsg);
   socket.on(ChatConst.GROUP_UPDATED, handleGroupUpdated);
+  socket.on(ChatConst.GET_GROUP_BLOCKED_USERS, handleGetGroupBlockedUsers);
   socket.on(ChatConst.CLEAR_GROUP_CHAT, handleClearGroupChat);
   socket.on(ChatConst.EXPIRED, handleExpired)    
 
@@ -679,13 +694,15 @@ const ChatsContent: React.FC = () => {
         {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
         {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"},
         {id: 4, name: "Send a Notification"},
-        {id: 5, name: "Edit Chatbox Style"}
+        {id: 5, name: "Edit Chatbox Style"},
+        {id: 6, name: "Block User"}
       ])
     } else {
       setGroupMenuOptions([
         {id: 1, name: "Copy Group Link"},
         {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
-        {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"}
+        {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"},
+        {id: 6, name: "Block User"}
       ])
     }
     
@@ -1048,6 +1065,8 @@ const ChatsContent: React.FC = () => {
       setOpenSendGroupNotification(true)
     } else if (menuId == 5) {
       setOpenEditGroupPop(true)
+    } else if (menuId == 6) {
+      setOpenBlockedUsersPopup(true);
     }
   }
 
@@ -1285,6 +1304,19 @@ const ChatsContent: React.FC = () => {
     const token = localStorage.getItem(TOKEN_KEY)
     clearGroupChat(token, group?.id);
     setOpenManageChatPopup(false);
+    dispatch(setIsLoading(true));
+  }
+
+  const getBlockedUsers = () => {
+    const token = localStorage.getItem(TOKEN_KEY)
+    getGroupBlockedUsers(token, group?.id);
+    dispatch(setIsLoading(true));
+  }
+
+  const updateBlockedUsers = (userIds: number[]) => {
+    const token = localStorage.getItem(TOKEN_KEY)
+    updateGroupBlockedUsers(token, group?.id, userIds);
+    setOpenBlockedUsersPopup(false);
     dispatch(setIsLoading(true));
   }
 
@@ -1890,6 +1922,14 @@ const ChatsContent: React.FC = () => {
         isOpen={openBannedUsersWidget}
         onClose={() => setOpenBannedUsersWidget(false)}
         unbanUsers={unbanUsers}
+      />
+
+      <BlockedUsersPopup
+        allMembers={group?.members?.filter(mem => mem.id != getCurrentUserId()) ?? []}
+        blockedUsers={group?.members?.filter(mem => blockedUserIds?.includes(mem.id)) ?? []}
+        isOpen={openBlockedUsersPopup}
+        onClose={() => setOpenBlockedUsersPopup(false)}
+        onSave={updateBlockedUsers}
       />
     </div>
   );

@@ -50,4 +50,6 @@ export default {
   SEND_GROUP_NOTIFY: "send group notify",
   UPDATE_GROUP_CHATBOX_STYLE: "udpate group chatbox style",
   TIMEOUT_USER: "timout user",
+  UPDATE_GROUP_BLOCKED_USERS: "update group blocked users",
+  GET_GROUP_BLOCKED_USERS: "get group blocked users"
 }
