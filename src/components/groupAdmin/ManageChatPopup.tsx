@@ -119,7 +119,8 @@ const ManageChatPopup: React.FC<Props> = ({
                     onReplyMessage={() => {}}
                     onReplyMsgPartClicked={() => {}}
                     onEndedHighlight={() => {}}                           
-                    onPinMessage={unPinMessage}                            
+                    onPinMessage={unPinMessage}   
+                    onTimeOutUser={() => {}}                         
                   />
                 ))
               )}

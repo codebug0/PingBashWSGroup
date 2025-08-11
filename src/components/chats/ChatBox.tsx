@@ -281,7 +281,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                     </p>
                   </div>
                 </div>
-                <span className="max-[810px]:flex cursor-pointer" style={{color: colors.title}}><FontAwesomeIcon icon={faBars} className="text-[14px]" /></span>   
+                <span className="max-[810px]:flex cursor-pointer" style={{color: colors.title}}><FontAwesomeIcon icon={faBars} className="text-[22px]" /></span>   
               </nav>
               {/* Chat Right Side Header End */}
 
@@ -322,6 +322,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
 
                             onPinMessage={() => {}}
                             onEndedHighlight={() => {}}
+                            onTimeOutUser={() => {}}
                           />
                         </div>
                         

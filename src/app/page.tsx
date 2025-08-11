@@ -1368,7 +1368,7 @@ const ChatsContent: React.FC = () => {
                 </div>
                 {currentUserId != 0 && <Popover placement="bottom-start" showArrow >
                   <PopoverTrigger>
-                    <div className="max-[810px]:flex cursor-pointer" ref={groupMemuPopoverRef}><FontAwesomeIcon icon={faBars} className="text-[14px]" /></div>
+                    <div className="max-[810px]:flex cursor-pointer" ref={groupMemuPopoverRef}><FontAwesomeIcon icon={faBars} className="text-[22px]" /></div>
                   </PopoverTrigger>
                   <PopoverContent className="bg-white dark:bg-zinc-100 border rounded-md shadow-md w-64 p-[16px]">
                     <ul className="flex flex-col gap-2">
