@@ -552,7 +552,7 @@ const ChatsContent: React.FC = () => {
     const myMemInfo = group?.members?.find(mem => mem.id == currentUserId)
     setFilteredPrevMsgList(filteredMsgList)
     let newMsgs = []
-    if (currentUserId == null || myMemInfo == null) {
+    if (currentUserId == null) {
       newMsgs = groupMsgList.filter(msg => msg.Receiver_Id === null)      
     } else {
       if (myMemInfo?.role_id == 1 || myMemInfo?.role_id == 2) {
@@ -600,7 +600,13 @@ const ChatsContent: React.FC = () => {
     const handleGetFavGroups = (data: ChatGroup[]) => {
       if (!isMounted) return;
       setFavGroups(data);
-    };        
+    };    
+    
+    if (currentUserId == 0 || currentUserId < 0) {
+      setStayAsAnon(false)
+      setShowSigninView(true)
+    }
+    
 
     // Register handlers
     socket.on(ChatConst.GET_FAV_GROUPS, handleGetFavGroups);
