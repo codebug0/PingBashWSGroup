@@ -28,18 +28,25 @@ import {
   sendGroupNotify,
   updateGroupChatboxConfig,
   timeoutGroupUser,
-  getGroupBlockedUsers,
-  updateGroupBlockedUsers
+  blockUser,
+  getBlockedUsers,
+  getGroupMessages
  } from "@/resource/utils/chat";
-import { useSearchParams } from "next/navigation";
 import { Popover, PopoverTrigger, PopoverContent } from "@nextui-org/popover";
 import ChatConst from "@/resource/const/chat_const";
-import { CHAT_BOX_HEIGHT, CHAT_BOX_WIDTH, GROUP_CREATER_ID, GROUP_MEMBER_IDS, SELECTED_GROUP_ID, SERVER_URL, TOKEN_KEY, USER_ID_KEY } from "@/resource/const/const";
+import { 
+  CHAT_BOX_HEIGHT, 
+  CHAT_BOX_WIDTH, 
+  GROUP_CREATER_ID, 
+  GROUP_MEMBER_IDS, 
+  SELECTED_GROUP_ID, 
+  SERVER_URL, 
+  TOKEN_KEY, 
+  USER_ID_KEY 
+} from "@/resource/const/const";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/redux/store";
 import { chatDate, containsURL, getCensoredMessage, getCensoredWordArray, isTimedout } from "@/resource/utils/helpers";
 import { MessageUnit, User, ChatOption, ChatGroup, ChatUser } from "@/interface/chatInterface";
-// import { setMessageList } from "@/redux/slices/messageSlice";
 import toast from "react-hot-toast";
 import messages from "@/resource/const/messages";
 import axios from "axios";
@@ -53,8 +60,6 @@ import { useSound } from "@/components/chats/useSound";
 import "./globals.css";
 import httpCode from "@/resource/const/httpCode";
 import { 
-  faArrowLeft, 
-  faArrowRight, 
   faPaperPlane,
   faBars,
   faClose,
@@ -93,7 +98,6 @@ import FilterWidget from "@/components/groupAdmin/FilterWidget";
 import ChatLimitPopup from "@/components/groupAdmin/ChatLimitPopup";
 import ManageChatPopup from "@/components/groupAdmin/ManageChatPopup";
 import ModeratorsPopup from "@/components/groupAdmin/ModeratorsPopup";
-import CensoredListPopup from "@/components/groupAdmin/CensoredContentsPopup";
 import CensoredContentsPopup from "@/components/groupAdmin/CensoredContentsPopup";
 import BannedUsersPopup from "@/components/groupAdmin/BannedUsersPopup";
 import PinnedMessagesWidget from "@/components/chats/PinnedMessagesWidget";
@@ -101,6 +105,7 @@ import SendNotificationPopup from "@/components/groupAdmin/SendNotificationPopup
 import GroupCreatPopup from "@/components/groupAdmin/groupCreatPopup";
 import { GroupPropsEditWidget } from "@/components/chats/GroupPropsEditWidget";
 import BlockedUsersPopup from "@/components/groupAdmin/BlockUsersPopup";
+import { SignupPopup } from "@/components/SignupPopup";
 
 
 interface Attachment {
@@ -140,23 +145,20 @@ interface ChatWidgetConfig {
 }
 
 const ChatsContent: React.FC = () => {
+  // Auth Params
+  const [showSigninPopup, setShowSigninPopup] = useState<boolean>(false);
+  const [showSignupPopup, setShowSignupPopup] = useState<boolean>(false);
 
   const [inputMsg, setInputMsg] = useState("")
   const [lastChatDate, setLastChatDate] = useState(1)
   const [showEmoji, setShowEmoji] = useState(false)
   const [attachment, setAttachment] = useState<Attachment>()
 
-  // const msgList: MessageUnit[] = useSelector((state: RootState) => state.msg.messageList)
   const [groupMsgList, setGroupMsgList] = useState<MessageUnit[]>([])
-  const [sentGroupNotification, setSentGroupNotification] = useState(false)
-  // const [prevMsgList, setPrevMsgList] = useState<MessageUnit[]>([]);
 
   const [group, setGroup] = useState<ChatGroup>();
   const [favGroups, setFavGroups] = useState<ChatGroup[]>([]);
 
-  // const groupList = useSelector((state: RootState) => state.msg.chatGroupList)
-
-  const params = useSearchParams();
   const dispatch = useDispatch()
   const imageUploadRef = useRef<HTMLInputElement | null>(null)
   const fileUploadRef = useRef<HTMLInputElement | null>(null)
@@ -180,7 +182,6 @@ const ChatsContent: React.FC = () => {
   const playBell = useSound("/sounds/sound_bell.wav");
   const [currentUserId, setCurrentUserId] = useState<number>(0);
   const [groupMenuOptions, setGroupMenuOptions] = useState<any[]>([])
-  const [showSigninView, setShowSigninView] = useState(true)
 
   const [anonToken, setAnonToken] = useState<string | null>(null)
   
@@ -195,7 +196,7 @@ const ChatsContent: React.FC = () => {
     {val: "never", name: "Never",  option_id: 0}
   ];
 
-  const [showSigninPopup, setShowSigninPopup] = useState<boolean>(false);
+  
 
   const [groupConfig, setGroupConfig] = useState<ChatWidgetConfig>({
     sizeMode: 'fixed',
@@ -346,11 +347,13 @@ const ChatsContent: React.FC = () => {
     // setCurrentGroupId(groupId); 
     setCurrentUserId(userId);
     // setGroupCreaterId(getGroupCreaterId());
-
+console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
     if (getCurrentUserId() != 0 && token && groupId) {   
+      console.log("==== Login as Real ===", token, groupId, getAnonId())
       loginAsReal(token, groupId, getAnonId());
-      getGroupHistoryAnon(groupId, lastChatDate);
+      getGroupMessages(token, groupId)
     } else {
+      console.log("======== Login as Anon ===", getAnonId())
       registerAsAnon(getAnonId());          
     }    
     checkScreenSize();
@@ -471,10 +474,12 @@ const ChatsContent: React.FC = () => {
       console.log("== Token 1111 ===", token)
       setPinnedMsgIds([]);
       getPinnedMessages(token, group?.id)
-      getBlockedUsers();
     }
     setShowMsgReplyView(false);
     setFilterMode(0)
+    if (group && currentUserId) {
+      getMyBlockedUsers();
+    }
   }, [group?.id, currentUserId]);
 
   useEffect(() => {
@@ -559,10 +564,15 @@ const ChatsContent: React.FC = () => {
       }
     }
 
-    if (blockedUserIds?.length > 0) {
-      newMsgs = newMsgs.filter(msg => !blockedUserIds.includes(msg.Sender_Id ?? -1))
+    if (myMemInfo?.role_id != 1 && myMemInfo?.role_id != 2 && group?.creater_id != getCurrentUserId()) {
+      if (blockedUserIds?.length > 0) {
+        newMsgs = newMsgs.filter(msg => {
+          const senderInfo = group?.members?.find(u => u.id === msg.Sender_Id)
+          if (senderInfo?.role_id == 1 || senderInfo?.role_id == 2) return true
+          return !blockedUserIds.includes(msg.Sender_Id ?? -1)        
+        })
+      }
     }
-
     setFilteredMsgList(newMsgs)
 
     const prevLength = filteredMsgList.length;
@@ -584,7 +594,7 @@ const ChatsContent: React.FC = () => {
         }          
       }
     }
-  }, [groupMsgList, currentUserId, blockedUserIds])
+  }, [groupMsgList, currentUserId, blockedUserIds, group])
 
   useEffect(() => {
     let isMounted = true;
@@ -599,14 +609,31 @@ const ChatsContent: React.FC = () => {
 
     // Receive updated message afer delete group message.
     socket.on(ChatConst.GET_PINNED_MESSAGES, handleGetPinnedMesssages)   
+    socket.on(ChatConst.USER_LOGGED_WILD_SUB, handleLoginAsWildSub)
+    socket.on(ChatConst.GET_BLOCKED_USERS_INFO, handleGetBlockedUsers);
     
     // Cleanup
     return () => {
       isMounted = false;
       socket.off(ChatConst.GET_FAV_GROUPS, handleGetFavGroups);
       socket.off(ChatConst.GET_PINNED_MESSAGES, handleGetPinnedMesssages)
+      socket.off(ChatConst.USER_LOGGED_WILD_SUB, handleLoginAsWildSub)
+      socket.off(ChatConst.GET_BLOCKED_USERS_INFO, handleGetBlockedUsers);
     };
   }, [currentUserId]);
+
+  const handleLoginAsWildSub = (group: ChatGroup) => {
+    if (group) {
+      console.log("==== Group ===", group)
+      console.log("=== Save Group Id 2 ===", group?.id?.toString())
+      localStorage.setItem(SELECTED_GROUP_ID, group?.id?.toString())
+      setGroup(group)
+    }    
+  }
+
+  const handleGetGroupMessages = (data: MessageUnit[]) => {
+    setGroupMsgList(data)
+  }
 
   const handleGetPinnedMesssages = (msgIds: number[]) => {
       setPinnedMsgIds(msgIds);
@@ -634,6 +661,9 @@ const ChatsContent: React.FC = () => {
   const handleGroupUpdated = (updatedGroup: ChatGroup) => {
     dispatch(setIsLoading(false));
     if (group?.id == updatedGroup.id) {
+      console.log("=== Group Updated ====", updatedGroup)
+      console.log("=== Save Group Id 3 ===", updatedGroup?.id?.toString())
+      localStorage.setItem(SELECTED_GROUP_ID, updatedGroup.id.toString())
       setGroup(updatedGroup)
     }
     if (favGroups.find(grp => grp.id == updatedGroup.id)) {
@@ -661,6 +691,13 @@ const ChatsContent: React.FC = () => {
     setBlockedUserIds(data)
   }
 
+  const handleGetBlockedUsers = (data: User[]) => {
+    console.log("blocked Users =====", data)
+    console.log("blocked User Idss =====", data.map(user => user.Opposite_Id))
+    dispatch(setIsLoading(false));
+    setBlockedUserIds(data.map(user => user.Opposite_Id))
+  }
+
   const handleClearGroupChat = (groupId: number) => {
     if (groupId == group?.id) {
       // dispatch(setMessageList([]));
@@ -672,10 +709,10 @@ const ChatsContent: React.FC = () => {
   const handleExpired = () => {
     localStorage.clear()
     dispatch(setIsLoading(false));
-    setShowSigninView(true)
     setShowSigninPopup(true);
   }  
-
+  
+  socket.on(ChatConst.GET_GROUP_MSG, handleGetGroupMessages)
   socket.on(ChatConst.BAN_GROUP_USER, handleBanGroupUser);
   socket.on(ChatConst.UNBAN_GROUP_USER, handleUnbanGroupUser);
   socket.on(ChatConst.UNBAN_GROUP_USERS, handleUnbanGroupUsers);
@@ -684,6 +721,7 @@ const ChatsContent: React.FC = () => {
   socket.on(ChatConst.DELETE_GROUP_MSG, handleDeleteGroupMsg);
   socket.on(ChatConst.GROUP_UPDATED, handleGroupUpdated);
   socket.on(ChatConst.GET_GROUP_BLOCKED_USERS, handleGetGroupBlockedUsers);
+  
   socket.on(ChatConst.CLEAR_GROUP_CHAT, handleClearGroupChat);
   socket.on(ChatConst.EXPIRED, handleExpired)    
 
@@ -694,27 +732,17 @@ const ChatsContent: React.FC = () => {
         {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
         {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"},
         {id: 4, name: "Send a Notification"},
-        {id: 5, name: "Edit Chatbox Style"},
-        {id: 6, name: "Block User"}
+        {id: 5, name: "Edit Chatbox Style"}
       ])
     } else {
       setGroupMenuOptions([
         {id: 1, name: "Copy Group Link"},
         {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
-        {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"},
-        {id: 6, name: "Block User"}
+        {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"}
       ])
     }
     
   }, [favGroups, group, hideChat, currentUserId]);
-
-  useEffect(() => {
-    if (currentUserId && currentUserId > 0) {
-      setShowSigninView(false)
-    } else {
-      setShowSigninView(true)
-    }
-  }, [currentUserId])
 
   // To get the initial data for the users and the categegories for the dashboard
   const registerAnon = useCallback(async (token: string, anonId: number, groupName: string) => {
@@ -738,6 +766,8 @@ const ChatsContent: React.FC = () => {
         toast.error(groupName + "group does not exist.");
         return;
       } 
+      console.log("=== Save Group Id 1 ===", res.data.group["id"].toString())
+      localStorage.setItem(SELECTED_GROUP_ID, res.data.group["id"].toString() )
       setGroup(res.data.group);
       if (res.data.group != null) {
         getGroupHistoryAnon(res.data.group.id, lastChatDate);
@@ -1021,9 +1051,14 @@ const ChatsContent: React.FC = () => {
 
   const onSendGroupNotification = (msg: string) => {
     const token = localStorage.getItem(TOKEN_KEY)
-    setSentGroupNotification(false)
     hasShownGroupNotify.current = false
     sendGroupNotify(token, group?.id ?? null, msg)
+  }
+
+  const getMyBlockedUsers = () => {
+    const token = localStorage.getItem(TOKEN_KEY)
+    getBlockedUsers(token);
+    dispatch(setIsLoading(true));
   }
 
   useEffect(() => {
@@ -1205,7 +1240,39 @@ const ChatsContent: React.FC = () => {
     dispatch(setIsLoading(false));
   }
 
-  const handleSignin = useCallback(async (email: string, password: string) => {
+  const handleSignin = (async (email: string, password: string) => {
+    console.log("== LOG IN===")
+    try {
+        const res = await axios.post(`${SERVER_URL}/api/user/login`, {
+          Email: email,
+          Password: password,
+          Role: 1,
+        });
+
+        // Error Notification
+        if (res.status === httpCode.SUCCESS) {
+          toast.success(messages.login.success);
+          setCurrentUserId(res.data.id);
+          localStorage.setItem(USER_ID_KEY, res.data.id);
+          localStorage.setItem(TOKEN_KEY, res.data.token);
+          console.log("=== Group Login===", group)
+          loginAsReal(res.data.token, group?.id, getAnonId());
+          setShowSigninPopup(false);
+          console.log("== LOGIN USER===", res.data.id)
+        } else if (res.status === httpCode.NOT_MATCHED) {
+          toast.error(messages.common.notMatched);
+        } else {
+          toast.error(messages.common.failure);
+        }
+
+      } catch (error) {
+        toast.error(messages.common.serverError);
+      }   
+    dispatch(setIsLoading(false));
+  });
+
+  const handleSignup = useCallback(async (email: string, password: string) => {
+    console.log("== LOG IN===")
     try {
         const res = await axios.post(`${SERVER_URL}/api/user/login`, {
           Email: email,
@@ -1221,6 +1288,7 @@ const ChatsContent: React.FC = () => {
           localStorage.setItem(TOKEN_KEY, res.data.token);
           loginAsReal(res.data.token, group?.id, getAnonId());
           setShowSigninPopup(false);
+          console.log("== LOGIN USER===", res.data.id)
         } else if (res.status === httpCode.NOT_MATCHED) {
           toast.error(messages.common.notMatched);
         } else {
@@ -1307,16 +1375,9 @@ const ChatsContent: React.FC = () => {
     dispatch(setIsLoading(true));
   }
 
-  const getBlockedUsers = () => {
-    const token = localStorage.getItem(TOKEN_KEY)
-    getGroupBlockedUsers(token, group?.id);
-    dispatch(setIsLoading(true));
-  }
-
-  const updateBlockedUsers = (userIds: number[]) => {
-    const token = localStorage.getItem(TOKEN_KEY)
-    updateGroupBlockedUsers(token, group?.id, userIds);
-    setOpenBlockedUsersPopup(false);
+  const onBlockUser = (userId: number | null) => {
+    const token = localStorage.getItem(TOKEN_KEY)   
+    blockUser(token, userId);
     dispatch(setIsLoading(true));
   }
 
@@ -1334,7 +1395,6 @@ const ChatsContent: React.FC = () => {
   }
 
   const onTimeOutGroupUser = (userId: number | null) => {
-    console.log("====senderId===", userId)
     const token = localStorage.getItem(TOKEN_KEY)
     timeoutGroupUser(token, group?.id, userId)
     dispatch(setIsLoading(true));
@@ -1398,25 +1458,31 @@ const ChatsContent: React.FC = () => {
                   </div>
                   </div>
                 </div>
-                {currentUserId != 0 && <Popover placement="bottom-start" showArrow >
-                  <PopoverTrigger>
-                    <div className="max-[810px]:flex cursor-pointer" ref={groupMemuPopoverRef}><FontAwesomeIcon icon={faBars} className="text-[22px]" /></div>
-                  </PopoverTrigger>
-                  <PopoverContent className="bg-white dark:bg-zinc-100 border rounded-md shadow-md w-64 p-[16px]">
-                    <ul className="flex flex-col gap-2">
-                      {groupMenuOptions.map((item, index) => (
-                        <li
-                          key={index}
-                          className="px-3 py-1 rounded-md hover:bg-default-200 cursor-pointer"
-                          onClick={() => handleGroupMenuClick(item.id)}
-                        >
-                          {item.name}
-                        </li>
-                      ))}
-                      <SwitchButton enabled={isDarkMode} onToggle={setDarkMode} />
-                    </ul>
-                  </PopoverContent>
-                </Popover>}
+                <div className="flex items-center flex-row">
+                  {currentUserId != 0 && <Popover placement="bottom-start" showArrow >
+                    <PopoverTrigger>
+                      <div className="max-[810px]:flex cursor-pointer" ref={groupMemuPopoverRef}><FontAwesomeIcon icon={faBars} className="text-[22px]" /></div>
+                    </PopoverTrigger>
+                    <PopoverContent className="bg-white dark:bg-zinc-100 border rounded-md shadow-md w-64 p-[16px]">
+                      <ul className="flex flex-col gap-2">
+                        {groupMenuOptions.map((item, index) => (
+                          <li
+                            key={index}
+                            className="px-3 py-1 rounded-md hover:bg-default-200 cursor-pointer"
+                            onClick={() => handleGroupMenuClick(item.id)}
+                          >
+                            {item.name}
+                          </li>
+                        ))}
+                        <SwitchButton enabled={isDarkMode} onToggle={setDarkMode} />
+                      </ul>
+                    </PopoverContent>
+                  </Popover>}
+                  {currentUserId > 0 && <div className="ml-[12px] cursor-pointer" onClick={() => {
+                    localStorage.clear()
+                    setCurrentUserId(0)
+                  }}>LOG OUT</div>}
+                </div>
                 
               </nav>}
               {/* Chat Right Side Header End */}
@@ -1455,10 +1521,7 @@ const ChatsContent: React.FC = () => {
                             avatar={message?.sender_avatar ? `${SERVER_URL}/uploads/users/${message.sender_avatar}` : null}
                             content={`${message.Content}`}
                             sender_banned={message.sender_banned}
-                            sender_unban_request={message.sender_unban_request}
                             time={chatDate(`${message.Send_Time}`)}
-                            ownMessage={message.Sender_Id === getCurrentUserId()}
-                            isCreater={group.creater_id === getCurrentUserId()}
                             read_time={message.Read_Time}
                             parentMsg={filteredMsgList.find(msg => msg.Id === message.parent_id)}
                             showPin={canPinMessage}
@@ -1504,6 +1567,7 @@ const ChatsContent: React.FC = () => {
                               pinnedMsgIds.includes(message.Id ?? -1) ? unpinMessage(msgId) : pinMessage(msgId)
                             }}
                             onTimeOutUser={onTimeOutGroupUser} 
+                            onBlockUser={onBlockUser}   
                           />
                         </div>
                         
@@ -1823,6 +1887,20 @@ const ChatsContent: React.FC = () => {
         isOpen={showSigninPopup} 
         onClose={() => setShowSigninPopup(false)} 
         onSignin={handleSignin}
+        goToSignup={() => {
+          setShowSigninPopup(false)
+          setShowSignupPopup(true)
+        }}
+        goAsAnon={() => {}}
+      />
+      <SignupPopup
+        isOpen={showSignupPopup} 
+        onClose={() => setShowSignupPopup(false)} 
+        onSignup={handleSignup}
+        goToSignin={() => {
+          setShowSignupPopup(false)
+          setShowSigninPopup(true)
+        }}
       />
       <GroupCreatPopup isOpen={openEditGroupPop} onClose={() => setOpenEditGroupPop(false)}>
         <h2 className="text-xl font-semibold mb-2 flex justify-center">Group: {group?.name}</h2>
@@ -1922,14 +2000,6 @@ const ChatsContent: React.FC = () => {
         isOpen={openBannedUsersWidget}
         onClose={() => setOpenBannedUsersWidget(false)}
         unbanUsers={unbanUsers}
-      />
-
-      <BlockedUsersPopup
-        allMembers={group?.members?.filter(mem => mem.id != getCurrentUserId()) ?? []}
-        blockedUsers={group?.members?.filter(mem => blockedUserIds?.includes(mem.id)) ?? []}
-        isOpen={openBlockedUsersPopup}
-        onClose={() => setOpenBlockedUsersPopup(false)}
-        onSave={updateBlockedUsers}
       />
     </div>
   );

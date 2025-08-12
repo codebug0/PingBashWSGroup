@@ -64,6 +64,7 @@ export const getMessages = (token: string | null, target: number | null | undefi
 }
 
 export const getGroupMessages = (token: string | null, groupId: number | null | undefined) => {
+  console.log(" ===  Get Group Message ===", token, groupId)
   socket.emit(ChatConst.GET_GROUP_MSG, { token, groupId })
 }
 
@@ -221,15 +222,21 @@ export const updateGroupModerators = (token: string | null, groupId: number | nu
   }
 }
 
-export const getGroupBlockedUsers = (token: string | null, groupId: number | null | undefined) => {
-  if (token && groupId) {
-    socket.emit(ChatConst.GET_GROUP_BLOCKED_USERS, { token, groupId })
+export const getBlockedUsers = (token: string | null) => {
+  if (token) {
+    socket.emit(ChatConst.GET_BLOCKED_USERS_INFO, { token })
   }
 }
 
-export const updateGroupBlockedUsers = (token: string | null, groupId: number | null | undefined, userIds: number[] | null) => {
-  if (token && groupId) {
-    socket.emit(ChatConst.UPDATE_GROUP_BLOCKED_USERS, { token, groupId, userIds })
+export const blockUser = (token: string | null, userId: number | null) => {
+  if (token && userId) {    
+    socket.emit(ChatConst.BLOCK_USER, { token, userId })
+  }
+}
+
+export const unblockUser = (token: string | null, userId: number | null) => {
+  if (token && userId) {    
+    socket.emit(ChatConst.UNBLOCK_USER, { token, userId })
   }
 }
 

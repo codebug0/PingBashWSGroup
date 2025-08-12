@@ -4,26 +4,23 @@ import toast from "react-hot-toast";
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  onSignin: (email: string, password: string) => void;
-  goToSignup: () => void
-  goAsAnon: () => void
+  onSignup: (email: string, name: string, password: string) => void;
+  goToSignin:() => void
 };
 
-export const SigninPopup: React.FC<Props> = ({ 
-  isOpen, 
-  onClose, 
-  onSignin,
-  goToSignup,
-  goAsAnon
-}) => {
+export const SignupPopup: React.FC<Props> = ({ isOpen, onClose, onSignup, goToSignin }) => {
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPW, setConfirmPW] = useState('');
 
   const emailRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmPWRef = useRef<HTMLInputElement>(null);
 
   const handleSignUpClick = () => {
-    // window.location.href = 'http://pingbash.com/auth?Collection=signUp'; // Replace with your actual sign-up URL
+    window.location.href = 'http://pingbash.com/auth?Collection=signUp'; // Replace with your actual sign-up URL
   };
 
   const isValidEmail = (email: string): boolean => {
@@ -31,11 +28,11 @@ export const SigninPopup: React.FC<Props> = ({
     return regex.test(email);
   };
 
-  const handleSignIn = () => {
+  const handleSignUp = () => {
     if (!email.trim()) {
       emailRef.current?.focus();
       return;
-    }
+    }    
 
     if (!isValidEmail(email)) {
       toast.error("Please enter a valid email address.");
@@ -43,13 +40,28 @@ export const SigninPopup: React.FC<Props> = ({
       return;
     }
 
+    if (!name.trim()) {
+      nameRef.current?.focus();
+      return;
+    }
+
     if (!password.trim()) {
       passwordRef.current?.focus();
       return;
     }
-    onSignin(email, password);
-    // Proceed with login (e.g., call API here)
-    console.log('Logging in with:', { email, password });
+
+    if (!confirmPW.trim()) {
+      confirmPWRef.current?.focus();
+      return;
+    }
+
+    if (password != confirmPW) {
+        toast.error("Password does not match.");
+        passwordRef.current?.focus();
+        return;
+    }
+
+    onSignup(email, name, password);
   };
 
   if (!isOpen) return null;
@@ -66,7 +78,7 @@ export const SigninPopup: React.FC<Props> = ({
           ×
         </button>
 
-        <h2 className="text-2xl mb-4">Sign In</h2>
+        <h2 className="text-2xl mb-4">Sign Up</h2>
 
         <input
           ref={emailRef}
@@ -78,6 +90,15 @@ export const SigninPopup: React.FC<Props> = ({
         />
 
         <input
+            ref={nameRef}
+            type="text"
+            placeholder="Full Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="border p-2 w-full mb-2 rounded"
+        />
+
+        <input
           ref={passwordRef}
           type="password"
           placeholder="Password"
@@ -86,30 +107,29 @@ export const SigninPopup: React.FC<Props> = ({
           className="border p-2 w-full mb-4 rounded"
         />
 
+        <input
+          ref={confirmPWRef}
+          type="password"
+          placeholder="Password"
+          value={confirmPW}
+          onChange={(e) => setConfirmPW(e.target.value)}
+          className="border p-2 w-full mb-4 rounded"
+        />
+
         <button
-          onClick={handleSignIn}
+          onClick={handleSignUp}
           className="bg-blue-500 text-white w-full py-2 rounded hover:bg-blue-600 mb-3"
         >
-          Sign In
+          Sign Up
         </button>
 
         <div className="text-md text-center">
-          Don't you have an account?{' '}
+          Do you have an account?{' '}
           <button
-            onClick={goToSignup}
+            onClick={goToSignin}
             className="text-blue-600 hover:underline font-semibold"
           >
-            Sign up
-          </button>
-        </div>
-
-        <div className="text-md text-center text-bold">
-          Or stay as ?{' '}
-          <button
-            onClick={goAsAnon}
-            className="text-blue-600 hover:underline font-semibold"
-          >
-            Anon
+            Sign In
           </button>
         </div>
       </div>

@@ -296,11 +296,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                             key={`message-${idx}`}      
                             avatar={message?.sender_avatar ? `${SERVER_URL}/uploads/users/${message.sender_avatar}` : null}
                             content={`${message.Content}`}
-                            sender_banned={message.sender_banned}
-                            sender_unban_request={message.sender_unban_request}                            
+                            sender_banned={message.sender_banned}                         
                             time={chatDate(`${message.Send_Time}`)}
-                            ownMessage={true}
-                            isCreater={true}
                             read_time={message.Read_Time}
                             parentMsg={messages.find(msg => msg.Id === message.parent_id)}
                             onDelete={() => {}}
@@ -323,6 +320,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                             onPinMessage={() => {}}
                             onEndedHighlight={() => {}}
                             onTimeOutUser={() => {}}
+                            onBlockUser={() => {}}
                           />
                         </div>
                         

@@ -11,16 +11,14 @@ import {
 import Lottie from "lottie-react"
 import { stickers } from './LottiesStickers';
 import { ChatGroup, MessageUnit } from '@/interface/chatInterface';
-import { isTimedout } from '@/resource/utils/helpers';
+import { chatDate, isTimedout } from '@/resource/utils/helpers';
+import * as Tooltip from "@radix-ui/react-tooltip";
 
 interface MessageProps {
   avatar: string | null, 
-  content: string, 
+  content: string,
   sender_banned: number | null,
-  sender_unban_request: number | null,
   time: string, 
-  ownMessage?: boolean, 
-  isCreater: boolean,
   read_time: string | null,
 
   message_color: string,
@@ -46,16 +44,14 @@ interface MessageProps {
   onReplyMsgPartClicked: (msgId: number | null | undefined) => void;
   onEndedHighlight: () => void;
   onTimeOutUser:(userId: number | null) => void;
+  onBlockUser:(userId: number | null) => void;
 }
 
 const Message: React.FC<MessageProps> = ({ 
   avatar, 
   content, 
   sender_banned,
-  sender_unban_request,
   time, 
-  ownMessage, 
-  isCreater,
   read_time,
   parentMsg,
   message_color,
@@ -76,12 +72,17 @@ const Message: React.FC<MessageProps> = ({
   onReplyMessage,
   onReplyMsgPartClicked,
   onEndedHighlight,
-  onTimeOutUser
+  onTimeOutUser,
+  onBlockUser
 }) => {
   const messageRef = useRef<HTMLDivElement | null>(null);
   const [highlight, setHighlight] = useState(false);
   const [filterModeText, setFilterModeText] = useState<string | null>(null)
+
   const [showTO, setShowTO] = useState(false)
+  const [showBlock, setShowBlock] = useState(false)
+  const [showBan, setShowBan] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
 
   const onBanButtonClicked = () => onBanUser(message?.Sender_Id ?? null);
   const onDeleteButtonClicked = () => onDelete(message?.Id);
@@ -161,11 +162,38 @@ const Message: React.FC<MessageProps> = ({
         }        
       }
 
-      const memInfo = group?.members?.find(user => user.id == message.Sender_Id);
-      if (isTimedout(memInfo?.to_time ?? "") == "" && isCreater && !ownMessage) {
+      const senderInfo = group?.members?.find(user => user.id == message.Sender_Id);
+      const myMemInfo = group?.members?.find(user => user.id == userId);
+      if ((myMemInfo?.role_id == 1 || group.creater_id == userId  || myMemInfo?.role_id == 2) && senderInfo?.role_id != 1 && senderInfo?.role_id != 2 && isTimedout(senderInfo?.to_time ?? "") == "") {
         setShowTO(true)
       } else {
         setShowTO(false)
+      }
+      
+      if (myMemInfo?.role_id != 1 && myMemInfo?.role_id != 2 && senderInfo?.role_id != 1 && senderInfo?.role_id != 2 && senderInfo?.id != userId) {
+        setShowBlock(true)
+      } else {
+        setShowBlock(false)
+      }
+
+      if ((myMemInfo?.role_id == 1 || group.creater_id == userId  || myMemInfo?.role_id == 2) && senderInfo?.role_id != 1 && senderInfo?.role_id != 2) {
+        setShowBan(true)
+      } else {
+        setShowBan(false)
+      }
+
+      if (myMemInfo?.role_id == 1 || group.creater_id == userId) {
+        setShowDelete(true)
+      } else {
+        if (myMemInfo?.role_id == 2) {
+          if (senderInfo?.id != myMemInfo.id && senderInfo?.role_id == 2 || senderInfo?.role_id == 1) {
+            setShowDelete(false)
+          } else {
+            setShowDelete(true)
+          }
+        } else {
+          setShowDelete(false)
+        }   
       }
     }
   }, [message, group, userId])
@@ -213,30 +241,156 @@ const Message: React.FC<MessageProps> = ({
           </div>
           {filterModeText && <div className={`absolute right-[0px] bottom-[-4px] px-[8px] py-[3px] ${filterModeText == "Mods" ? "bg-black" : "bg-gray-600"} text-white text-[12px]`}>{filterModeText}</div>}
           <div className="h-[16px] flex items-center whitespace-nowrap absolute top-[4px] right-0 gap-4 mr-[12px]">
-            {show_reply && <p className="text-[12px] cursor-pointer" style={{ color: date_color, fontSize: font_size * 0.9 }} onClick={onReplyButtonClicked}>Reply</p>}
             <p className="text-[12px]" style={{ color: date_color, fontSize: font_size * 0.9 }}>{time}</p>
+            {show_reply && 
+              <Tooltip.Provider>
+                <Tooltip.Root>
+                  <Tooltip.Trigger asChild>
+                    <p className="text-[12px] cursor-pointer" style={{ color: date_color, fontSize: font_size * 0.9 }} onClick={onReplyButtonClicked}>Reply</p>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="bg-gray-800 text-white text-md rounded py-1 px-2 shadow-md z-10"
+                      side="top"
+                      sideOffset={5}
+                    >
+                      Replay message
+                      <Tooltip.Arrow className="fill-gray-800" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>            
+            }
+            {showBlock &&
+              <Tooltip.Provider>
+                <Tooltip.Root>
+                  <Tooltip.Trigger asChild>
+                    <button onClick={() => onBlockUser(message?.Sender_Id ?? null)} className={`cursor-pointer`}>
+                      <FontAwesomeIcon icon={faBan} className={`text-[16px] text-[#8A8A8A]`} style={{ color: date_color, fontSize: font_size }} />
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="bg-gray-800 text-white text-md rounded py-1 px-2 shadow-md z-10"
+                      side="top"
+                      sideOffset={5}
+                    >
+                      Block user
+                      <Tooltip.Arrow className="fill-gray-800" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+              }
             {showTO &&
-            <button 
-              onClick={() => onTimeOutUser(message?.Sender_Id ?? null)} 
-              className={`${sender_banned === 1 ? "cursor-not-allowed" : "cursor-pointer"}`}
-              style={{ color: date_color, fontSize: font_size, fontWeight: 'bold' }}
-            >
-              TO
-            </button>}
-            {isPinned && <button onClick={onPinButtonClicked}>
-              <FontAwesomeIcon icon={faThumbtackSlash} className='rotate-45 transition-transform' style={{ color: date_color, fontSize: font_size }} />
-            </button>}
-            {showPin && !isPinned && <button onClick={onPinButtonClicked}>
-              <FontAwesomeIcon icon={faThumbTack} className='rotate-45 transition-transform' style={{ color: date_color, fontSize: font_size }} />
-            </button>}
-            {isCreater && !ownMessage && sender_banned !== 1 &&
-              <button onClick={onBanButtonClicked} disabled={sender_banned === 1} className={`${sender_banned === 1 ? "cursor-not-allowed" : "cursor-pointer"}`}>
-                <FontAwesomeIcon icon={faBan} className={`text-[16px] ${sender_banned === 1 ? "text-[#CFCFCF]" : "text-[#8A8A8A]"}`} style={{ color: date_color, fontSize: font_size }} />
-              </button>}
-            {isCreater &&
-              <button onClick={onDeleteButtonClicked}>
-                <FontAwesomeIcon icon={faClose} style={{ color: date_color, fontSize: font_size }} />
-              </button>}
+              <Tooltip.Provider>
+                <Tooltip.Root>
+                  <Tooltip.Trigger asChild>
+                    <button 
+                      onClick={() => onTimeOutUser(message?.Sender_Id ?? null)} 
+                      className={`${sender_banned === 1 ? "cursor-not-allowed" : "cursor-pointer"}`}
+                      style={{ color: date_color, fontSize: font_size, fontWeight: 'bold' }}
+                    >
+                      TO
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="bg-gray-800 text-white text-md rounded py-1 px-2 shadow-md z-10"
+                      side="top"
+                      sideOffset={5}
+                    >
+                      Timeout user
+                      <Tooltip.Arrow className="fill-gray-800" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+              
+            }
+            {showPin && isPinned && 
+            <Tooltip.Provider>
+                <Tooltip.Root>
+                  <Tooltip.Trigger asChild>
+                    <button onClick={onPinButtonClicked}>
+                      <FontAwesomeIcon icon={faThumbtackSlash} className='rotate-45 transition-transform' style={{ color: date_color, fontSize: font_size }} />
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="bg-gray-800 text-white text-md rounded py-1 px-2 shadow-md z-10"
+                      side="top"
+                      sideOffset={5}
+                    >
+                      Unpin Message
+                      <Tooltip.Arrow className="fill-gray-800" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+            }
+            {showPin && !isPinned && 
+            <Tooltip.Provider>
+                <Tooltip.Root>
+                  <Tooltip.Trigger asChild>
+                    <button onClick={onPinButtonClicked}>
+                      <FontAwesomeIcon icon={faThumbTack} className='rotate-45 transition-transform' style={{ color: date_color, fontSize: font_size }} />
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="bg-gray-800 text-white text-md rounded py-1 px-2 shadow-md z-10"
+                      side="top"
+                      sideOffset={5}
+                    >
+                      Pin Message
+                      <Tooltip.Arrow className="fill-gray-800" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+            }
+            {showBan &&
+              <Tooltip.Provider>
+                <Tooltip.Root>
+                  <Tooltip.Trigger asChild>
+                    <button onClick={onBanButtonClicked} disabled={sender_banned === 1} className={`${sender_banned === 1 ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                      <FontAwesomeIcon icon={faBan} className={`text-[16px] ${sender_banned === 1 ? "text-[#CFCFCF]" : "text-[#8A8A8A]"}`} style={{ color: date_color, fontSize: font_size }} />
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="bg-gray-800 text-white text-md rounded py-1 px-2 shadow-md z-10"
+                      side="top"
+                      sideOffset={5}
+                    >
+                      ban User
+                      <Tooltip.Arrow className="fill-gray-800" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+              }
+            {showDelete &&
+            <Tooltip.Provider>
+              <Tooltip.Root>
+                <Tooltip.Trigger asChild>
+                  <button onClick={onDeleteButtonClicked}>
+                    <FontAwesomeIcon icon={faClose} style={{ color: date_color, fontSize: font_size }} />
+                  </button>
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Content
+                    className="bg-gray-800 text-white text-md rounded py-1 px-2 shadow-md z-10"
+                    side="top"
+                    sideOffset={5}
+                  >
+                    Delete message
+                    <Tooltip.Arrow className="fill-gray-800" />
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            </Tooltip.Provider>}
           </div>
         </div>
       </div>

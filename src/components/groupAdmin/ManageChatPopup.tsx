@@ -93,10 +93,7 @@ const ManageChatPopup: React.FC<Props> = ({
                     avatar={message?.sender_avatar ? `${SERVER_URL}/uploads/users/${message.sender_avatar}` : null}
                     content={`${message.Content}`}
                     sender_banned={message.sender_banned}
-                    sender_unban_request={message.sender_unban_request}
                     time={chatDate(`${message.Send_Time}`)}
-                    ownMessage={false}
-                    isCreater={false}
                     read_time={message.Read_Time}
                     parentMsg={null}
                     showPin={true}
@@ -120,7 +117,8 @@ const ManageChatPopup: React.FC<Props> = ({
                     onReplyMsgPartClicked={() => {}}
                     onEndedHighlight={() => {}}                           
                     onPinMessage={unPinMessage}   
-                    onTimeOutUser={() => {}}                         
+                    onTimeOutUser={() => {}}      
+                    onBlockUser={() => {}}                   
                   />
                 ))
               )}
