@@ -10,6 +10,7 @@ export default {
   USER_LOGGED: "user logged",
   SEND_MSG: "send msg",
   SEND_GROUP_MSG: "send group msg",
+  SEND_GROUP_MSG_ANON: "send group msg anon",
   GET_MSG: "get msg",
   GET_GROUP_MSG: "get group msg",
   LISTEN_GROUP_MSG: "listen group msg",

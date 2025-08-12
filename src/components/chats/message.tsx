@@ -84,6 +84,8 @@ const Message: React.FC<MessageProps> = ({
   const [showBan, setShowBan] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
 
+  const [senderName, setSenderName] = useState<string>("")
+
   const onBanButtonClicked = () => onBanUser(message?.Sender_Id ?? null);
   const onDeleteButtonClicked = () => onDelete(message?.Id);
   const onPinButtonClicked = () => onPinMessage(message?.Id ?? null);
@@ -148,6 +150,14 @@ const Message: React.FC<MessageProps> = ({
       // onEndedHighlight();
     }
   }, [highlight]);
+
+  useEffect(() => {    
+    if (message?.Sender_Id && message?.Sender_Id > 100000) {
+      setSenderName("anon" + String(message?.Sender_Id ?? -1).slice(-3))
+    } else {
+      setSenderName(message?.sender_name ?? "")
+    }
+  }, [message])
 
   useEffect(() => {
     if (message && group && userId) {
@@ -234,7 +244,7 @@ const Message: React.FC<MessageProps> = ({
 
             <div className="flex items-start gap-1 flex-nowrap">
               <div className={`relative ${content.includes("<img") ? "flex" : ""} text-[15px] mt-[16px]`} style={{ color: message_color, fontSize:font_size }}>
-                <span className="font-bold mr-[8px]" style={{ fontSize: font_size }}>{message?.sender_name}:</span>
+                <span className="font-bold mr-[8px]" style={{ fontSize: font_size }}>{senderName}:</span>
                 {parentMsg && 
                   <div className="flex-row-center rounded-[8px] overflow-y-hidden cursor-pointer"
                     style={{ height: font_size * 3, background: reply_message_color + "22" }}

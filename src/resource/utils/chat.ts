@@ -51,7 +51,14 @@ export const sendGroupMsg = (
   parent_id: number | null | undefined
 ) => {
   let message = makeTextSafe(msg);
-  socket.emit(ChatConst.SEND_GROUP_MSG, { groupId, msg: message, token, receiverId, parent_id })
+  if (token?.startsWith("anon")) {
+    const anonId = Number(token.slice(4))
+    console.log("=== Token ====", anonId)
+    socket.emit(ChatConst.SEND_GROUP_MSG_ANON, { groupId, msg: message, anonId, receiverId, parent_id })
+  } else {
+    console.log("=== Token ====", token)
+    socket.emit(ChatConst.SEND_GROUP_MSG, { groupId, msg: message, token, receiverId, parent_id })
+  }  
 }
 
 /**

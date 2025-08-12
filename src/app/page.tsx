@@ -30,15 +30,14 @@ import {
   timeoutGroupUser,
   blockUser,
   getBlockedUsers,
-  getGroupMessages
+  getGroupMessages,
+  userLoggedOut
  } from "@/resource/utils/chat";
 import { Popover, PopoverTrigger, PopoverContent } from "@nextui-org/popover";
 import ChatConst from "@/resource/const/chat_const";
 import { 
   CHAT_BOX_HEIGHT, 
   CHAT_BOX_WIDTH, 
-  GROUP_CREATER_ID, 
-  GROUP_MEMBER_IDS, 
   SELECTED_GROUP_ID, 
   SERVER_URL, 
   TOKEN_KEY, 
@@ -181,12 +180,15 @@ const ChatsContent: React.FC = () => {
   const [showMsgReplyView, setShowMsgReplyView] = useState<boolean | null>(null);
   const playBell = useSound("/sounds/sound_bell.wav");
   const [currentUserId, setCurrentUserId] = useState<number>(0);
-  const [groupMenuOptions, setGroupMenuOptions] = useState<any[]>([])
+  const [groupMenuOptions, setGroupMenuOptions] = useState<{ id: number; name: string }[]>([])
 
   const [anonToken, setAnonToken] = useState<string | null>(null)
   
   const soundMenuPopoverRef = useRef<HTMLImageElement>(null);
   const filterPopoverRef = useRef<HTMLImageElement>(null);
+
+  const [stayAsAnon, setStayAsAnon] = useState(false)
+  const [showSigninView, setShowSigninView] = useState(false)
 
   const [mySoundOptionId, setMySoundOptionId] = useState<number | null | undefined>(null);
   const [soundSelectedOption, setSoundSelectedOption] = useState<string | null | undefined>(null);
@@ -343,16 +345,11 @@ const ChatsContent: React.FC = () => {
     const token = localStorage.getItem(TOKEN_KEY);
     const groupId = getChatGroupID();
     const userId = getCurrentUserId();
-    // setCurrentGroupId(groupId); 
     setCurrentUserId(userId);
-    // setGroupCreaterId(getGroupCreaterId());
-console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
     if (getCurrentUserId() != 0 && token && groupId) {   
-      console.log("==== Login as Real ===", token, groupId, getAnonId())
       loginAsReal(token, groupId, getAnonId());
       getGroupMessages(token, groupId)
     } else {
-      console.log("======== Login as Anon ===", getAnonId())
       registerAsAnon(getAnonId());          
     }    
     checkScreenSize();
@@ -379,6 +376,7 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
     }
     
     const handleLogginAsAnon = (data: any) => {
+      console.log("== handleLogginAsAnon ===")
       if (data.success == "success") {
         registerAnon(getAnonToken(), getAnonId(), getSubDomain());
       }
@@ -678,6 +676,7 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
   }
 
   const handleSendGroupMsg = (data: MessageUnit[]) => {
+    console.log("data ===", data)
     const groupId = data?.length && data[data.length - 1].group_id; 
     if (groupId === group?.id) {
       const newList = mergeArrays(groupMsgList, data);
@@ -726,28 +725,45 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
   socket.on(ChatConst.EXPIRED, handleExpired)    
 
   useEffect(() => {
-    if (currentUserId == group?.creater_id) {
-      setGroupMenuOptions([
-        {id: 1, name: "Copy Group Link"},
-        {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
-        {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"},
-        {id: 4, name: "Send a Notification"},
-        {id: 5, name: "Edit Chatbox Style"},
-        {id: 6, name: "Log out"}
-      ])
-    } else {
-      setGroupMenuOptions([
-        {id: 1, name: "Copy Group Link"},
-        {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
-        {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"},
-        {id: 6, name: "Log out"}
-      ])
+    const options: { id: number; name: string }[] = [];
+    options.push({id: 1, name: "Copy Group Link"})
+    if (!stayAsAnon) {
+      options.push({id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"})
     }
+    options.push({id: 3, name: hideChat ? "Show Chat" : "Hide Chat"})
+    if (currentUserId == group?.creater_id) {
+      options.push({id: 4, name: "Send a Notification"})
+      options.push({id: 5, name: "Edit Chatbox Style"})
+    } 
+    if (stayAsAnon) {
+      options.push({id: 7, name: "Log in"})
+    } else {
+      options.push({id: 6, name: "Log out"})
+    }
+    setGroupMenuOptions(options)
+    // if (currentUserId == group?.creater_id) {
+    //   setGroupMenuOptions([
+    //     {id: 1, name: "Copy Group Link"},
+    //     {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
+    //     {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"},
+    //     {id: 4, name: "Send a Notification"},
+    //     {id: 5, name: "Edit Chatbox Style"},
+    //     {id: 6, name: "Log out"}
+    //   ])
+    // } else {
+    //   setGroupMenuOptions([
+    //     {id: 1, name: "Copy Group Link"},
+    //     {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
+    //     {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"},
+    //     {id: 6, name: "Log out"}
+    //   ])
+    // }
     
   }, [favGroups, group, hideChat, currentUserId]);
 
   // To get the initial data for the users and the categegories for the dashboard
   const registerAnon = useCallback(async (token: string, anonId: number, groupName: string) => {
+    console.log("===registerAnon===")
     try {
       dispatch(setIsLoading(true));
       const res = await axios.post(`${SERVER_URL}/api/private/add/groups/addanon`,
@@ -896,20 +912,26 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
       }
     }
 
+    let token = localStorage.getItem(TOKEN_KEY)
+    if (stayAsAnon) {
+      token = "anon" + currentUserId.toString()
+    }
+
+    console.log("=== token ===", token)
+
     if (attachment?.type && attachment.type === 'file') {
       sendGroupMsg(group?.id, `<a className="inline-block text-cyan-300 hover:underline w-8/12 relative rounded-e-md" 
       href=${SERVER_URL + ""}/uploads/chats/files/${attachment.url}>File Name : ${attachment.url}</a>`
-        , localStorage.getItem(TOKEN_KEY), receiverid, replyMsg?.Id)
+        , token, receiverid, replyMsg?.Id)
     } else if (attachment?.type && attachment.type === 'image') {
       sendGroupMsg(
         group?.id, 
         `<img src='${SERVER_URL}/uploads/chats/images/${attachment?.url}' alt="" />`, 
-        localStorage.getItem(TOKEN_KEY), 
+        token, 
         receiverid,
         replyMsg?.Id
       )
     } else {
-      const token = localStorage.getItem(TOKEN_KEY);
        if (type === "gif") {
         sendGroupMsg(group?.id, value, token, receiverid, replyMsg?.Id);
       } else if (type === "sticker") {
@@ -1105,6 +1127,13 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
     } else if (menuId == 6) {
       localStorage.setItem(USER_ID_KEY, "")
       setCurrentUserId(-1)
+      dispatch(setIsLoading(true))
+      setStayAsAnon(false)
+      userLoggedOut()
+      localStorage.removeItem(TOKEN_KEY)
+      dispatch(setIsLoading(false))
+    } else if (menuId == 7) {
+      setShowSigninPopup(true)
     }
   }
 
@@ -1274,23 +1303,24 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
     dispatch(setIsLoading(false));
   });
 
-  const handleSignup = useCallback(async (email: string, password: string) => {
-    console.log("== LOG IN===")
+  const handleSignup = useCallback(async (email: string, name: string, password: string) => {
     try {
-        const res = await axios.post(`${SERVER_URL}/api/user/login`, {
+        const res = await axios.post(`${SERVER_URL}/api/user/register/group`, {
           Email: email,
-          Password: password,
-          Role: 1,
+          Name: name,
+          Password: password
         });
 
         // Error Notification
         if (res.status === httpCode.SUCCESS) {
           toast.success(messages.login.success);
           setCurrentUserId(res.data.id);
+          console.log("== LOGIN USER DATA===", res.data)
           localStorage.setItem(USER_ID_KEY, res.data.id);
           localStorage.setItem(TOKEN_KEY, res.data.token);
           loginAsReal(res.data.token, group?.id, getAnonId());
           setShowSigninPopup(false);
+          setShowSignupPopup(false)
           console.log("== LOGIN USER===", res.data.id)
         } else if (res.status === httpCode.NOT_MATCHED) {
           toast.error(messages.common.notMatched);
@@ -1417,6 +1447,18 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
     dispatch(setIsLoading(true));
   }
 
+  useEffect(() => {
+    if (currentUserId > 0 && currentUserId < 100000) {
+      setShowSigninView(false)
+    } else {
+      if (stayAsAnon) {
+        setShowSigninView(false)
+      } else {
+        setShowSigninView(true)
+      }
+    }
+  }, [currentUserId, stayAsAnon])
+
   return (
     <div className="page-container bg-white">      
       {/* Chats Area Start */}
@@ -1462,7 +1504,7 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
                   </div>
                 </div>
                 <div className="flex items-center flex-row">
-                  {currentUserId > 0 && <Popover placement="bottom-start" showArrow >
+                  {!showSigninView && <Popover placement="bottom-start" showArrow >
                     <PopoverTrigger>
                       <div className="max-[810px]:flex cursor-pointer" ref={groupMemuPopoverRef}><FontAwesomeIcon icon={faBars} className="text-[22px]" /></div>
                     </PopoverTrigger>
@@ -1866,7 +1908,7 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
                 {/* Image Upload, File Upload, Emoticon End */}
 
                 {/* Add Sign in button for the anons */}
-                {(typeof currentUserId !== "number" || Number.isNaN(currentUserId) || currentUserId < 1 || currentUserId > 100000 || currentUserId == null) && <div className="z-[11] w-full h-full absolute bottom-[0px] right-[0px] py-[3px] border-t px-[8px]" onClick={() => {setShowSigninPopup(true)}}>
+                {showSigninView && <div className="z-[11] w-full h-full absolute bottom-[0px] right-[0px] py-[3px] border-t px-[8px]" onClick={() => {setShowSigninPopup(true)}}>
                   <div 
                     className="h-full w-full bg-white flex justify-center items-center cursor-pointer"
                     style={{
@@ -1894,7 +1936,13 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
           setShowSigninPopup(false)
           setShowSignupPopup(true)
         }}
-        goAsAnon={() => {}}
+        goAsAnon={() => {
+          setStayAsAnon(true)
+          setShowSigninPopup(false)
+          console.log("=== Anon Id ====", getAnonId())
+          registerAsAnon(getAnonId());  
+          setCurrentUserId(getAnonId())
+        }}
       />
       <SignupPopup
         isOpen={showSignupPopup} 
