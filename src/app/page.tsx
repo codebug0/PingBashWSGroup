@@ -283,7 +283,6 @@ const ChatsContent: React.FC = () => {
   const [filteredMsgList, setFilteredMsgList] = useState<MessageUnit[]>([])
   const [filteredPrevMsgList, setFilteredPrevMsgList] = useState<MessageUnit[]>([])
   const [blockedUserIds, setBlockedUserIds] = useState<number[]>([])
-  const [openBlockedUsersPopup, setOpenBlockedUsersPopup] = useState(false);
 
   const [openEditGroupPop, setOpenEditGroupPop] = useState(false);
   
@@ -480,6 +479,7 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
     if (group && currentUserId) {
       getMyBlockedUsers();
     }
+    console.log("===== currentUserId =====", currentUserId)
   }, [group?.id, currentUserId]);
 
   useEffect(() => {
@@ -732,13 +732,15 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
         {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
         {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"},
         {id: 4, name: "Send a Notification"},
-        {id: 5, name: "Edit Chatbox Style"}
+        {id: 5, name: "Edit Chatbox Style"},
+        {id: 6, name: "Log out"}
       ])
     } else {
       setGroupMenuOptions([
         {id: 1, name: "Copy Group Link"},
         {id: 2, name: favGroups.find(grp => grp.id == group?.id) == null ? "Add to My Groups" : "Remove from My Groups"},
-        {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"}
+        {id: 3, name: hideChat ? "Show Chat" : "Hide Chat"},
+        {id: 6, name: "Log out"}
       ])
     }
     
@@ -1101,7 +1103,8 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
     } else if (menuId == 5) {
       setOpenEditGroupPop(true)
     } else if (menuId == 6) {
-      setOpenBlockedUsersPopup(true);
+      localStorage.setItem(USER_ID_KEY, "")
+      setCurrentUserId(-1)
     }
   }
 
@@ -1459,7 +1462,7 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
                   </div>
                 </div>
                 <div className="flex items-center flex-row">
-                  {currentUserId != 0 && <Popover placement="bottom-start" showArrow >
+                  {currentUserId > 0 && <Popover placement="bottom-start" showArrow >
                     <PopoverTrigger>
                       <div className="max-[810px]:flex cursor-pointer" ref={groupMemuPopoverRef}><FontAwesomeIcon icon={faBars} className="text-[22px]" /></div>
                     </PopoverTrigger>
@@ -1478,10 +1481,10 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
                       </ul>
                     </PopoverContent>
                   </Popover>}
-                  {currentUserId > 0 && <div className="ml-[12px] cursor-pointer" onClick={() => {
+                  {/* {currentUserId > 0 && <div className="ml-[12px] cursor-pointer" onClick={() => {
                     localStorage.clear()
                     setCurrentUserId(0)
-                  }}>LOG OUT</div>}
+                  }}>LOG OUT</div>} */}
                 </div>
                 
               </nav>}
@@ -1537,7 +1540,7 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
 
                             message={message}
                             group={group}
-                            userId={getCurrentUserId()}
+                            userId={currentUserId}
 
                             onDelete={messageDeleteButtonClicked}
                             onBanUser={userBanButtonClicked}
@@ -1863,7 +1866,7 @@ console.log("==== GET REAL INFO ===", token, groupId, getAnonId())
                 {/* Image Upload, File Upload, Emoticon End */}
 
                 {/* Add Sign in button for the anons */}
-                {(currentUserId == 0 || currentUserId == null) && <div className="z-[11] w-full h-full absolute bottom-[0px] right-[0px] py-[3px] border-t px-[8px]" onClick={() => {setShowSigninPopup(true)}}>
+                {(typeof currentUserId !== "number" || Number.isNaN(currentUserId) || currentUserId < 1 || currentUserId > 100000 || currentUserId == null) && <div className="z-[11] w-full h-full absolute bottom-[0px] right-[0px] py-[3px] border-t px-[8px]" onClick={() => {setShowSigninPopup(true)}}>
                   <div 
                     className="h-full w-full bg-white flex justify-center items-center cursor-pointer"
                     style={{

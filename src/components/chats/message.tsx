@@ -164,37 +164,55 @@ const Message: React.FC<MessageProps> = ({
 
       const senderInfo = group?.members?.find(user => user.id == message.Sender_Id);
       const myMemInfo = group?.members?.find(user => user.id == userId);
-      if ((myMemInfo?.role_id == 1 || group.creater_id == userId  || myMemInfo?.role_id == 2) && senderInfo?.role_id != 1 && senderInfo?.role_id != 2 && isTimedout(senderInfo?.to_time ?? "") == "") {
-        setShowTO(true)
+      if (userId > 0 && userId < 100000) {
+        if ((myMemInfo?.role_id == 1 || group.creater_id == userId  || myMemInfo?.role_id == 2) && senderInfo?.role_id != 1 && senderInfo?.role_id != 2 && isTimedout(senderInfo?.to_time ?? "") == "") {
+          setShowTO(true)
+        } else {
+          setShowTO(false)
+        }
       } else {
         setShowTO(false)
-      }
+      }      
       
-      if (myMemInfo?.role_id != 1 && myMemInfo?.role_id != 2 && senderInfo?.role_id != 1 && senderInfo?.role_id != 2 && senderInfo?.id != userId) {
-        setShowBlock(true)
+      if (userId > 0 && userId < 100000) {
+        if (myMemInfo?.role_id != 1 && myMemInfo?.role_id != 2 && senderInfo?.role_id != 1 && senderInfo?.role_id != 2 && senderInfo?.id != userId) {
+          setShowBlock(true)
+        } else {
+          setShowBlock(false)
+        }
       } else {
         setShowBlock(false)
       }
-
-      if ((myMemInfo?.role_id == 1 || group.creater_id == userId  || myMemInfo?.role_id == 2) && senderInfo?.role_id != 1 && senderInfo?.role_id != 2) {
-        setShowBan(true)
+      
+      if (userId > 0 && userId < 100000) {
+        if ((myMemInfo?.role_id == 1 || group.creater_id == userId  || myMemInfo?.role_id == 2) && senderInfo?.role_id != 1 && senderInfo?.role_id != 2) {
+          setShowBan(true)
+        } else {
+          setShowBan(false)
+        }
       } else {
         setShowBan(false)
       }
+      
 
-      if (myMemInfo?.role_id == 1 || group.creater_id == userId) {
-        setShowDelete(true)
-      } else {
-        if (myMemInfo?.role_id == 2) {
-          if (senderInfo?.id != myMemInfo.id && senderInfo?.role_id == 2 || senderInfo?.role_id == 1) {
-            setShowDelete(false)
-          } else {
-            setShowDelete(true)
-          }
+      if (userId > 0 && userId < 100000) {
+        if (myMemInfo?.role_id == 1 || group.creater_id == userId) {
+          setShowDelete(true)
         } else {
-          setShowDelete(false)
-        }   
+          if (myMemInfo?.role_id == 2) {
+            if (senderInfo?.id != myMemInfo.id && senderInfo?.role_id == 2 || senderInfo?.role_id == 1) {
+              setShowDelete(false)
+            } else {
+              setShowDelete(true)
+            }
+          } else {
+            setShowDelete(false)
+          }   
+        }
+      } else {
+        setShowDelete(false)
       }
+      
     }
   }, [message, group, userId])
 
