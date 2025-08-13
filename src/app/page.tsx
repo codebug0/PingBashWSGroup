@@ -1115,7 +1115,8 @@ const ChatsContent: React.FC = () => {
     groupMemuPopoverRef.current?.click();
     if (menuId == 1) {
       try {
-        await navigator.clipboard.writeText(window.location.href);
+        fallbackCopyTextToClipboard(window.location.href)
+        // await navigator.clipboard.writeText(window.location.href);
         toast.success("URL copied to clipboard!");
       } catch (err) {
         toast.error("Failed to copy URL: " + err);
@@ -1465,11 +1466,33 @@ const ChatsContent: React.FC = () => {
     }
   }, [currentUserId, stayAsAnon])
 
+  const fallbackCopyTextToClipboard = (text:string) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+
+    // Make textarea invisible but still selectable
+    textArea.style.position = "fixed";
+    textArea.style.top = "-999px";
+    document.body.appendChild(textArea);
+
+    textArea.focus();
+    textArea.select();
+
+    try {
+      const successful = document.execCommand("copy");
+      console.log(successful ? "Copied!" : "Copy failed");
+    } catch (err) {
+      console.error("Fallback copy failed", err);
+    }
+
+    document.body.removeChild(textArea);
+  }
+
   return (
     <div className="page-container bg-white">      
       {/* Chats Area Start */}
       {/* <ChatangoWidget /> */}
-      {/* <iframe src="http://mg.pingbash.com" width="800" height="600"></iframe> */}
+      {/* <iframe src="http://mg.pingbash.com" width="800" height="600" allow="clipboard-write"></iframe> */}
       <div className="content-wrapper w-full max-lg:px-0 h-screen overflow-y-auto overflow-x-hidden">
         {/* <div className="page-content w-full pt-[36px] h-full flex items-center justify-center px-[24px] pb-[24px] relative max-lg:px-[20px] "> */}
         <div className="page-content h-full flex items-center justify-center relative ">
@@ -1562,7 +1585,7 @@ const ChatsContent: React.FC = () => {
                 {/* <div className="text-center text-sm"><button onClick={() => setLastChatDate(lastChatDate + 1)}
                   style={{color: groupConfig.colors.msgText ?? MSG_COLOR}}  
                 >Read More</button></div> */}
-                <div className="flex flex-col gap-[6px] overflow-y-scroll" ref={scrollContainerRef} >
+                <div className="flex flex-col gap-[4px] overflow-y-scroll" ref={scrollContainerRef} >
                   {filteredMsgList?.length ? filteredMsgList.map((message, idx) => {
                     if (message.group_id === group?.id) {
                       return (

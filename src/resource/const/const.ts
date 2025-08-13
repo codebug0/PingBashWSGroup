@@ -33,6 +33,6 @@ export const MSG_DATE_COLOR = '#666666';
 
 export const SHOW_USER_IMG = true;
 export const ALLOW_USER_MSG_STYLE = false;
-export const FONT_SIZE = 15;
+export const FONT_SIZE = 13;
 export const ROUND_CORNORS = false;
 export const CORNOR_RADIUS = 8;

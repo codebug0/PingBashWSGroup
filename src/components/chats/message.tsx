@@ -83,6 +83,7 @@ const Message: React.FC<MessageProps> = ({
   const [showBlock, setShowBlock] = useState(false)
   const [showBan, setShowBan] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const [toolsFontSize, setToolsFontSize] = useState(12)
 
   const [senderName, setSenderName] = useState<string>("")
 
@@ -226,6 +227,10 @@ const Message: React.FC<MessageProps> = ({
     }
   }, [message, group, userId])
 
+  useEffect(() => {
+    // setToolsFontSize(font_size -2)
+  }, [font_size])
+
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <div 
@@ -243,7 +248,7 @@ const Message: React.FC<MessageProps> = ({
             />}
 
             <div className="flex items-start gap-1 flex-nowrap">
-              <div className={`relative ${content.includes("<img") ? "flex" : ""} text-[15px] mt-[16px]`} style={{ color: message_color, fontSize:font_size }}>
+              <div className={`relative ${content.includes("<img") ? "flex" : ""} text-[15px] mt-[20px]`} style={{ color: message_color, fontSize:font_size }}>
                 <span className="font-bold mr-[8px]" style={{ fontSize: font_size }}>{senderName}:</span>
                 {parentMsg && 
                   <div className="flex-row-center rounded-[8px] overflow-y-hidden cursor-pointer"
@@ -263,18 +268,23 @@ const Message: React.FC<MessageProps> = ({
                     <img src={content.slice("gif::".length)} className="w-40" /> :
                     content.includes("sticker::") ?
                       <Lottie animationData={getSticker(content)} style={{ width: 120, height: 120 }} /> :
-                      content.includes(".gif") ? <img src={content} className="w-40" /> : <span dangerouslySetInnerHTML={{ __html: content! }} />}
+                      content.includes(".gif") ? <img src={content} className="w-40" /> : 
+                      <span dangerouslySetInnerHTML={{ __html: content.replace(
+                        /(https?:\/\/[^\s]+)/g,
+                        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+                      ) }} />                      
+                }
               </div>
             </div>
           </div>
           {filterModeText && <div className={`absolute right-[0px] bottom-[-4px] px-[8px] py-[3px] ${filterModeText == "Mods" ? "bg-black" : "bg-gray-600"} text-white text-[12px]`}>{filterModeText}</div>}
-          <div className="h-[16px] flex items-center whitespace-nowrap absolute top-[4px] right-0 gap-4 mr-[12px]">
-            <p className="text-[12px]" style={{ color: date_color, fontSize: font_size * 0.9 }}>{time}</p>
+          <div className="h-[16px] flex items-center whitespace-nowrap absolute top-[0px] right-0 gap-2 mr-[12px]">
+            <p className="" style={{ color: date_color, fontSize: toolsFontSize }}>{time}</p>
             {show_reply && 
               <Tooltip.Provider>
                 <Tooltip.Root>
                   <Tooltip.Trigger asChild>
-                    <p className="text-[12px] cursor-pointer" style={{ color: date_color, fontSize: font_size * 0.9 }} onClick={onReplyButtonClicked}>Reply</p>
+                    <p className="cursor-pointer" style={{ color: date_color, fontSize: toolsFontSize, fontWeight: 'bold' }} onClick={onReplyButtonClicked}>Reply</p>
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
                     <Tooltip.Content
@@ -282,7 +292,7 @@ const Message: React.FC<MessageProps> = ({
                       side="top"
                       sideOffset={5}
                     >
-                      Replay message
+                      Reply to message
                       <Tooltip.Arrow className="fill-gray-800" />
                     </Tooltip.Content>
                   </Tooltip.Portal>
@@ -294,7 +304,7 @@ const Message: React.FC<MessageProps> = ({
                 <Tooltip.Root>
                   <Tooltip.Trigger asChild>
                     <button onClick={() => onBlockUser(message?.Sender_Id ?? null)} className={`cursor-pointer`}>
-                      <FontAwesomeIcon icon={faBan} className={`text-[16px] text-[#8A8A8A]`} style={{ color: date_color, fontSize: font_size }} />
+                      <FontAwesomeIcon icon={faBan} className={` text-[#8A8A8A]`} style={{ color: date_color, fontSize: toolsFontSize }} />
                     </button>
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
@@ -317,7 +327,7 @@ const Message: React.FC<MessageProps> = ({
                     <button 
                       onClick={() => onTimeOutUser(message?.Sender_Id ?? null)} 
                       className={`${sender_banned === 1 ? "cursor-not-allowed" : "cursor-pointer"}`}
-                      style={{ color: date_color, fontSize: font_size, fontWeight: 'bold' }}
+                      style={{ color: date_color, fontSize: toolsFontSize, fontWeight: 'bold' }}
                     >
                       TO
                     </button>
@@ -340,8 +350,8 @@ const Message: React.FC<MessageProps> = ({
             <Tooltip.Provider>
                 <Tooltip.Root>
                   <Tooltip.Trigger asChild>
-                    <button onClick={onPinButtonClicked}>
-                      <FontAwesomeIcon icon={faThumbtackSlash} className='rotate-45 transition-transform' style={{ color: date_color, fontSize: font_size }} />
+                    <button onClick={onPinButtonClicked} style={{width: toolsFontSize }}>
+                      <FontAwesomeIcon icon={faThumbtackSlash} className='rotate-45 transition-transform' style={{ color: date_color, fontSize: toolsFontSize }} />
                     </button>
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
@@ -361,8 +371,8 @@ const Message: React.FC<MessageProps> = ({
             <Tooltip.Provider>
                 <Tooltip.Root>
                   <Tooltip.Trigger asChild>
-                    <button onClick={onPinButtonClicked}>
-                      <FontAwesomeIcon icon={faThumbTack} className='rotate-45 transition-transform' style={{ color: date_color, fontSize: font_size }} />
+                    <button onClick={onPinButtonClicked} style={{width: toolsFontSize }}>
+                      <FontAwesomeIcon icon={faThumbTack} className='rotate-45 transition-transform' style={{ color: date_color, fontSize: toolsFontSize }} />
                     </button>
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
@@ -382,8 +392,13 @@ const Message: React.FC<MessageProps> = ({
               <Tooltip.Provider>
                 <Tooltip.Root>
                   <Tooltip.Trigger asChild>
-                    <button onClick={onBanButtonClicked} disabled={sender_banned === 1} className={`${sender_banned === 1 ? "cursor-not-allowed" : "cursor-pointer"}`}>
-                      <FontAwesomeIcon icon={faBan} className={`text-[16px] ${sender_banned === 1 ? "text-[#CFCFCF]" : "text-[#8A8A8A]"}`} style={{ color: date_color, fontSize: font_size }} />
+                    <button 
+                      onClick={onBanButtonClicked} 
+                      disabled={sender_banned === 1} 
+                      className={`${sender_banned === 1 ? "cursor-not-allowed" : "cursor-pointer"} `}
+                      style={{width: toolsFontSize }}
+                    >
+                      <FontAwesomeIcon icon={faBan} className={`${sender_banned === 1 ? "text-[#CFCFCF]" : "text-[#8A8A8A]"}`} style={{ color: date_color, fontSize: toolsFontSize }} />
                     </button>
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
@@ -403,8 +418,8 @@ const Message: React.FC<MessageProps> = ({
             <Tooltip.Provider>
               <Tooltip.Root>
                 <Tooltip.Trigger asChild>
-                  <button onClick={onDeleteButtonClicked}>
-                    <FontAwesomeIcon icon={faClose} style={{ color: date_color, fontSize: font_size }} />
+                  <button onClick={onDeleteButtonClicked} style={{width: toolsFontSize }}>
+                    <FontAwesomeIcon icon={faClose} style={{ color: date_color, fontSize: toolsFontSize }} />
                   </button>
                 </Tooltip.Trigger>
                 <Tooltip.Portal>
