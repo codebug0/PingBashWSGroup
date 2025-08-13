@@ -1699,7 +1699,7 @@ const ChatsContent: React.FC = () => {
                   </div>                   
                 </div>}
                     
-                <div className="flex max-sm:flex-col-reverse justify-between gap-[10px] items-center">                  
+                <div className="flex max-[810px]:flex-col-reverse justify-between gap-[10px] items-center">                  
                   <div className="max-[810px]:flex justify-between max-[810px]:w-full">                    
                     <div className="flex gap-[10px] min-w-[126px] relative cursor-pointer max-[810px]:flex">
                       <div 
@@ -1830,7 +1830,7 @@ const ChatsContent: React.FC = () => {
                         </PopoverContent>
                       </Popover>                    
                     </div>
-                    <div className={`hidden gap-[10px] ${adminManageOptions?.length > 0 && !isBannedUser ? "min-w-[152px]" : "min-w-[72px]"} relative cursor-pointer max-[810px]:flex`}>                      
+                    <div className={`hidden gap-[10px] ${adminManageOptions?.length > 0 && !isBannedUser ? "min-w-[152px]" : "min-w-[112px]"} relative cursor-pointer max-[810px]:flex`}>                      
                       {showOnlineUserCount && <div className="w-[40px] h-[24px]" onClick={() => setOpenGroupOnlineUsersPopup(true)}><FontAwesomeIcon icon={faUser} className="text-[24px] mr-[8px]" />{groupOnlineUserIds.length}</div>}
                       <Popover placement="bottom-start" showArrow >
                         <PopoverTrigger>
