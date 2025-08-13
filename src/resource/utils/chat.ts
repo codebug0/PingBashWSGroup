@@ -71,7 +71,6 @@ export const getMessages = (token: string | null, target: number | null | undefi
 }
 
 export const getGroupMessages = (token: string | null, groupId: number | null | undefined) => {
-  console.log(" ===  Get Group Message ===", token, groupId)
   socket.emit(ChatConst.GET_GROUP_MSG, { token, groupId })
 }
 
@@ -274,5 +273,11 @@ export const getPinnedMessages = (token: string | null, groupId: number | null) 
 export const timeoutGroupUser = (token: string | null, groupId: number | null | undefined, userId: number | null) => {
   if (token && groupId && userId) {
     socket.emit(ChatConst.TIMEOUT_USER, { token, groupId, userId })
+  }
+}
+
+export const getGroupOnlineUsers = (token: string | null, groupId: number | null | undefined) => {
+  if (token && groupId) {
+    socket.emit(ChatConst.GET_GROUP_ONLINE_USERS, { token, groupId })
   }
 }

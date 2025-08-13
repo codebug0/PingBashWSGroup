@@ -54,5 +54,6 @@ export default {
   GET_GROUP_BLOCKED_USERS: "get group blocked users",
   GET_BLOCKED_USERS_INFO: "get blocked users info",
   BLOCK_USER: "block user",
-  UNBLOCK_USER: "unblock user"
+  UNBLOCK_USER: "unblock user",
+  GET_GROUP_ONLINE_USERS: "get group online users"
 }

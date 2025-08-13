@@ -31,7 +31,8 @@ import {
   blockUser,
   getBlockedUsers,
   getGroupMessages,
-  userLoggedOut
+  userLoggedOut,
+  getGroupOnlineUsers
  } from "@/resource/utils/chat";
 import { Popover, PopoverTrigger, PopoverContent } from "@nextui-org/popover";
 import ChatConst from "@/resource/const/chat_const";
@@ -66,6 +67,7 @@ import {
   faPaperclip,
   faVolumeUp,
   faFilter,
+  faUser,
   faSliders,
   faL
 } from "@fortawesome/free-solid-svg-icons";
@@ -103,8 +105,9 @@ import PinnedMessagesWidget from "@/components/chats/PinnedMessagesWidget";
 import SendNotificationPopup from "@/components/groupAdmin/SendNotificationPopup";
 import GroupCreatPopup from "@/components/groupAdmin/groupCreatPopup";
 import { GroupPropsEditWidget } from "@/components/chats/GroupPropsEditWidget";
-import BlockedUsersPopup from "@/components/groupAdmin/BlockUsersPopup";
 import { SignupPopup } from "@/components/SignupPopup";
+import GroupOnlineUsersPopup from "@/components/groupAdmin/GroupOnlineUsersPopup";
+import { Gruppo } from "next/font/google";
 
 
 interface Attachment {
@@ -287,6 +290,8 @@ const ChatsContent: React.FC = () => {
   const [blockedUserIds, setBlockedUserIds] = useState<number[]>([])
 
   const [openEditGroupPop, setOpenEditGroupPop] = useState(false);
+  const [openGroupOnlineUsersPopup, setOpenGroupOnlineUsersPopup] = useState(false)
+  const [showOnlineUserCount, setShowOnlineUserCount] = useState(false)
   
   const [isBannedUser, setIsBanneduser] = useState(false);
   const [canPost, setCanPost] = useState(true)
@@ -296,6 +301,7 @@ const ChatsContent: React.FC = () => {
   const [canSend, setCanSend] = useState(true);
   const [cooldown, setCooldown] = useState(0);
   const hasShownGroupNotify = useRef(false);
+  const [groupOnlineUserIds, setGroupOnlineUserIds] = useState<number[]>([])
   //--------------------------
 
 
@@ -353,8 +359,12 @@ const ChatsContent: React.FC = () => {
       registerAsAnon(getAnonId());          
     }    
     checkScreenSize();
+    const interval = setInterval(getCurrentGroupOnlineUsers, 1 * 60 * 1000);
     window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('resize', checkScreenSize);
+    }
   }, []);
 
   useEffect(() => {
@@ -460,15 +470,14 @@ const ChatsContent: React.FC = () => {
         }
       });
     }   
+    getCurrentGroupOnlineUsers()
   }, [group, isDarkMode]);
 
   useEffect(() => {
     dispatch(setIsLoading(false)); 
     let token = localStorage.getItem(TOKEN_KEY);
     if (!token) token = anonToken
-    console.log("== Token ===", token)
     if (token && group) {
-      console.log("== Token 1111 ===", token)
       setPinnedMsgIds([]);
       getPinnedMessages(token, group?.id)
     }
@@ -477,7 +486,6 @@ const ChatsContent: React.FC = () => {
     if (group && currentUserId) {
       getMyBlockedUsers();
     }
-    console.log("===== currentUserId =====", currentUserId)
   }, [group?.id, currentUserId]);
 
   useEffect(() => {
@@ -628,11 +636,15 @@ const ChatsContent: React.FC = () => {
 
   const handleLoginAsWildSub = (group: ChatGroup) => {
     if (group) {
-      console.log("==== Group ===", group)
-      console.log("=== Save Group Id 2 ===", group?.id?.toString())
       localStorage.setItem(SELECTED_GROUP_ID, group?.id?.toString())
       setGroup(group)
     }    
+  }
+
+  const handleGetGroupOnlineUsers = (data: number[]) => {
+    console.log("==== Online Users === ", data)
+    console.log("=== Group ==", group)
+    setGroupOnlineUserIds(data)
   }
 
   const handleGetGroupMessages = (data: MessageUnit[]) => {
@@ -665,8 +677,6 @@ const ChatsContent: React.FC = () => {
   const handleGroupUpdated = (updatedGroup: ChatGroup) => {
     dispatch(setIsLoading(false));
     if (group?.id == updatedGroup.id) {
-      console.log("=== Group Updated ====", updatedGroup)
-      console.log("=== Save Group Id 3 ===", updatedGroup?.id?.toString())
       localStorage.setItem(SELECTED_GROUP_ID, updatedGroup.id.toString())
       setGroup(updatedGroup)
     }
@@ -682,7 +692,6 @@ const ChatsContent: React.FC = () => {
   }
 
   const handleSendGroupMsg = (data: MessageUnit[]) => {
-    console.log("data ===", data)
     const groupId = data?.length && data[data.length - 1].group_id; 
     if (groupId === group?.id) {
       const newList = mergeArrays(groupMsgList, data);
@@ -697,8 +706,6 @@ const ChatsContent: React.FC = () => {
   }
 
   const handleGetBlockedUsers = (data: User[]) => {
-    console.log("blocked Users =====", data)
-    console.log("blocked User Idss =====", data.map(user => user.Opposite_Id))
     dispatch(setIsLoading(false));
     setBlockedUserIds(data.map(user => user.Opposite_Id))
   }
@@ -717,6 +724,7 @@ const ChatsContent: React.FC = () => {
     setShowSigninPopup(true);
   }  
   
+  socket.on(ChatConst.GET_GROUP_ONLINE_USERS, handleGetGroupOnlineUsers)
   socket.on(ChatConst.GET_GROUP_MSG, handleGetGroupMessages)
   socket.on(ChatConst.BAN_GROUP_USER, handleBanGroupUser);
   socket.on(ChatConst.UNBAN_GROUP_USER, handleUnbanGroupUser);
@@ -923,8 +931,6 @@ const ChatsContent: React.FC = () => {
       token = "anon" + currentUserId.toString()
     }
 
-    console.log("=== token ===", token)
-
     if (attachment?.type && attachment.type === 'file') {
       sendGroupMsg(group?.id, `<a className="inline-block text-cyan-300 hover:underline w-8/12 relative rounded-e-md" 
       href=${SERVER_URL + ""}/uploads/chats/files/${attachment.url}>File Name : ${attachment.url}</a>`
@@ -1054,6 +1060,12 @@ const ChatsContent: React.FC = () => {
       return;
     }
     setDeleteMsgId(msgId);
+  }
+
+  const getCurrentGroupOnlineUsers = () => {
+    console.log("==== GET ONLINE USERS ====")
+    const token = localStorage.getItem(TOKEN_KEY)
+    getGroupOnlineUsers(token, group?.id)
   }
 
   const banUser = () => {
@@ -1466,6 +1478,10 @@ const ChatsContent: React.FC = () => {
     }
   }, [currentUserId, stayAsAnon])
 
+  useEffect(() => {
+    setShowOnlineUserCount(currentUserId > 0 && currentUserId < 100000 && !stayAsAnon)
+  }, [currentUserId, stayAsAnon])
+
   const fallbackCopyTextToClipboard = (text:string) => {
     const textArea = document.createElement("textarea");
     textArea.value = text;
@@ -1814,7 +1830,8 @@ const ChatsContent: React.FC = () => {
                         </PopoverContent>
                       </Popover>                    
                     </div>
-                    <div className={`hidden gap-[10px] ${adminManageOptions?.length > 0 && !isBannedUser ? "min-w-[72px]" : "min-w-[32px]"} relative cursor-pointer max-[810px]:flex`}>                      
+                    <div className={`hidden gap-[10px] ${adminManageOptions?.length > 0 && !isBannedUser ? "min-w-[152px]" : "min-w-[72px]"} relative cursor-pointer max-[810px]:flex`}>                      
+                      {showOnlineUserCount && <div className="w-[40px] h-[24px]" onClick={() => setOpenGroupOnlineUsersPopup(true)}><FontAwesomeIcon icon={faUser} className="text-[24px] mr-[8px]" />{groupOnlineUserIds.length}</div>}
                       <Popover placement="bottom-start" showArrow >
                         <PopoverTrigger>
                           <span className="w-[24px] h-[24px]" ref={filterPopoverRef}><FontAwesomeIcon icon={faFilter} className="text-[24px]" /></span>
@@ -1883,7 +1900,8 @@ const ChatsContent: React.FC = () => {
                       {isMobile ? <div className="hidden max-[810px]:flex"><FontAwesomeIcon icon={faPaperPlane} className="text-[16px]" /></div> : "Send"}
                     </button>
                   </div>
-                  <div className={`flex gap-[10px] ${adminManageOptions?.length > 0 && !isBannedUser ? "min-w-[72px]" : "min-w-[32px]"} relative cursor-pointer max-[810px]:hidden`}>                      
+                  <div className={`flex gap-[10px] ${adminManageOptions?.length > 0 && !isBannedUser ? "min-w-[122px]" : "min-w-[82px]"} relative cursor-pointer max-[810px]:hidden`}>                      
+                    {showOnlineUserCount && <div className="w-auto h-[24px]" onClick={() => setOpenGroupOnlineUsersPopup(!openGroupOnlineUsersPopup)}><FontAwesomeIcon icon={faUser} className="text-[24px] pr-[6px]" />{groupOnlineUserIds.length}</div>}
                     <Popover placement="bottom-start" showArrow >
                       <PopoverTrigger>
                         <span className="w-[24px] h-[24px]" ref={filterPopoverRef}><FontAwesomeIcon icon={faFilter} className="text-[24px]" /></span>
@@ -2080,6 +2098,14 @@ const ChatsContent: React.FC = () => {
         isOpen={openBannedUsersWidget}
         onClose={() => setOpenBannedUsersWidget(false)}
         unbanUsers={unbanUsers}
+      />
+
+      <GroupOnlineUsersPopup 
+        isOpen={openGroupOnlineUsersPopup}
+        onClose={() => setOpenGroupOnlineUsersPopup(false)}
+        onlineUserIds={groupOnlineUserIds}
+        allCount={groupOnlineUserIds.length}
+        members={group?.members ?? []}
       />
     </div>
   );
