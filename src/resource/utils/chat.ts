@@ -22,15 +22,19 @@ export const getUsers = (token: string | null) => {
     socket.emit(ChatConst.GET_USERS, { token })
 }
 
-export const registerAsAnon = (userId: number | null) => {
+export const registerAsAnon = (userId: number | null, ip: string | null) => {
   if (userId)
-    socket.emit(ChatConst.USER_LOGGED_AS_ANNON, { userId })
+    socket.emit(ChatConst.USER_LOGGED_AS_ANNON, { userId, ip })
 }
 
-export const loginAsReal = (token: string | null, groupId: number | undefined, anonId: number | null) => {
-  console.log(anonId, "\\", groupId, "\\", token);
+export const loginAsReal = (
+  token: string | null,
+  groupId: number | undefined,
+  anonId: number | null,
+  ip: string | null
+) => {
   if (token && groupId && anonId)
-    socket.emit(ChatConst.USER_LOGGED_WILD_SUB, {token, groupId, anonId})
+    socket.emit(ChatConst.USER_LOGGED_WILD_SUB, {token, groupId, anonId, ip})
 }
 
 export const getGroups = (token: string | null) => {

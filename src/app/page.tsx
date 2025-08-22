@@ -302,6 +302,8 @@ const ChatsContent: React.FC = () => {
   const [cooldown, setCooldown] = useState(0);
   const hasShownGroupNotify = useRef(false);
   const [groupOnlineUserIds, setGroupOnlineUserIds] = useState<number[]>([])
+
+  const [ip, setIp] = useState<string>("");
   //--------------------------
 
 
@@ -345,19 +347,20 @@ const ChatsContent: React.FC = () => {
   }
 
   useEffect(() => {
+    fetch("https://api.ipify.org?format=json")
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("== IP Address ==", data.ip)
+        setIp(data.ip)
+      })
+      .catch((err) => console.error("Failed to get IP:", err));
+  }, []);
+
+  useEffect(() => {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768);
-    }; 
-    const token = localStorage.getItem(TOKEN_KEY);
-    const groupId = getChatGroupID();
-    const userId = getCurrentUserId();
-    setCurrentUserId(userId);
-    if (getCurrentUserId() != 0 && token && groupId) {   
-      loginAsReal(token, groupId, getAnonId());
-      getGroupMessages(token, groupId)
-    } else {
-      registerAsAnon(getAnonId());          
-    }    
+    };
+    
     checkScreenSize();
     const interval = setInterval(getCurrentGroupOnlineUsers, 1 * 60 * 1000);
     window.addEventListener('resize', checkScreenSize);
@@ -366,6 +369,20 @@ const ChatsContent: React.FC = () => {
       window.removeEventListener('resize', checkScreenSize);
     }
   }, []);
+
+  useEffect(() => {
+    if (ip == null) return    
+    const token = localStorage.getItem(TOKEN_KEY);
+    const groupId = getChatGroupID();
+    const userId = getCurrentUserId();
+    setCurrentUserId(userId);
+    if (getCurrentUserId() != 0 && token && groupId) {
+      loginAsReal(token, groupId, getAnonId(), ip);
+      getGroupMessages(token, groupId)
+    } else {
+      registerAsAnon(getAnonId(), ip);          
+    }    
+  }, [ip]);
 
   useEffect(() => {
     const getBrowserUUID = () => {
@@ -1307,7 +1324,7 @@ const ChatsContent: React.FC = () => {
           localStorage.setItem(USER_ID_KEY, res.data.id);
           localStorage.setItem(TOKEN_KEY, res.data.token);
           console.log("=== Group Login===", group)
-          loginAsReal(res.data.token, group?.id, getAnonId());
+          loginAsReal(res.data.token, group?.id, getAnonId(), ip);
           setShowSigninPopup(false);
           console.log("== LOGIN USER===", res.data.id)
         } else if (res.status === httpCode.NOT_MATCHED) {
@@ -1337,7 +1354,7 @@ const ChatsContent: React.FC = () => {
           console.log("== LOGIN USER DATA===", res.data)
           localStorage.setItem(USER_ID_KEY, res.data.id);
           localStorage.setItem(TOKEN_KEY, res.data.token);
-          loginAsReal(res.data.token, group?.id, getAnonId());
+          loginAsReal(res.data.token, group?.id, getAnonId(), ip);
           setShowSigninPopup(false);
           setShowSignupPopup(false)
           console.log("== LOGIN USER===", res.data.id)
@@ -1830,7 +1847,7 @@ const ChatsContent: React.FC = () => {
                         </PopoverContent>
                       </Popover>                    
                     </div>
-                    <div className={`hidden gap-[10px] ${adminManageOptions?.length > 0 && !isBannedUser ? "min-w-[152px]" : "min-w-[112px]"} relative cursor-pointer max-[810px]:flex`}>                      
+                    <div className={`hidden gap-[10px] ${adminManageOptions?.length > 0 && !isBannedUser ? "min-w-[152px]" : "min-w-[112px]"} relative cursor-pointer max-[810px]:flex justify-end`}>                      
                       {showOnlineUserCount && <div className="w-[40px] h-[24px]" onClick={() => setOpenGroupOnlineUsersPopup(true)}><FontAwesomeIcon icon={faUser} className="text-[24px] mr-[8px]" />{groupOnlineUserIds.length}</div>}
                       <Popover placement="bottom-start" showArrow >
                         <PopoverTrigger>
@@ -1987,7 +2004,7 @@ const ChatsContent: React.FC = () => {
           setStayAsAnon(true)
           setShowSigninPopup(false)
           console.log("=== Anon Id ====", getAnonId())
-          registerAsAnon(getAnonId());  
+          registerAsAnon(getAnonId(), ip);  
           setCurrentUserId(getAnonId())
         }}
       />
